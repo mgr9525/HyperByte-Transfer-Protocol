@@ -47,6 +47,20 @@ func TestRequest(t *testing.T) {
 type testFuns struct {
 }
 
+func (testFuns) AuthFun() AuthFun {
+	return func(c *Context) bool {
+		hdr, err := c.ReqHeader()
+		if err != nil {
+			c.ResString(ResStatusErr, "head err")
+			return false
+		}
+		if hdr.Token != "123456" {
+			c.ResString(ResStatusErr, "token err:"+hdr.Token)
+			return false
+		}
+		return true
+	}
+}
 func (testFuns) GetName(c *Context, hdr *Header) {
 	c.ResHeader().Set("cookie", "1234567")
 	c.ResString(ResStatusOk, "ok")
@@ -58,6 +72,7 @@ func TestRPCReq(t *testing.T) {
 		return
 	}
 	defer req.Close()
+	req.ReqHeader().Token = "123456"
 	err = req.Do(2, []byte("hello world"))
 	if err != nil {
 		println("NewRequest err:", err.Error())

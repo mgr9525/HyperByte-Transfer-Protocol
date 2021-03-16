@@ -2,6 +2,7 @@ package hbtp
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 )
@@ -10,9 +11,17 @@ type AuthFun = func(c *Context) bool
 
 var hdrtyp = reflect.TypeOf(Header{})
 
+type IRPCRoute interface {
+	AuthFun() AuthFun
+}
+
 func appendParams(self *reflect.Value, c *Context, fnt reflect.Type) ([]reflect.Value, error) {
 	hdr, _ := c.ReqHeader()
 	nmIn := fnt.NumIn()
+	nmOut := fnt.NumOut()
+	if nmOut > 0 {
+		return nil, errors.New("method err")
+	}
 	inls := make([]reflect.Value, nmIn)
 	ind := 1
 	inls[0] = reflect.ValueOf(c)
@@ -71,7 +80,7 @@ func ParamFunHandle(fn interface{}, authfn ...AuthFun) ConnFun {
 	}
 }
 
-func RPCFunHandle(t interface{}, authfn ...AuthFun) ConnFun {
+func RPCFunHandle(t IRPCRoute) ConnFun {
 	tv := reflect.ValueOf(t)
 	ty := tv.Type()
 	tyr := ty
@@ -83,16 +92,15 @@ func RPCFunHandle(t interface{}, authfn ...AuthFun) ConnFun {
 	}
 
 	mln := tyr.NumMethod()
+	mfn := t.AuthFun()
 	return func(c *Context) {
 		hdr, err := c.ReqHeader()
 		if err != nil {
 			c.ResString(ResStatusErr, fmt.Sprintf("ReqHeader err:%+v", err))
 			return
 		}
-		if len(authfn) > 0 {
-			if !authfn[0](c) {
-				return
-			}
+		if mfn != nil && !mfn(c) {
+			return
 		}
 
 		for i := 0; i < mln; i++ {

@@ -1,4 +1,4 @@
-# IotConn
+# HyperByte Transfer Protocol
 
 #### 介绍
 轻量级C/S通信协议，可在长连接、短连接之间反复横跳  (-_-||)!!!

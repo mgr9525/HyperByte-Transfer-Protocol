@@ -13,15 +13,13 @@ var hdrtyp = reflect.TypeOf(Header{})
 func appendParams(self *reflect.Value, c *Context, fnt reflect.Type) ([]reflect.Value, error) {
 	hdr, _ := c.ReqHeader()
 	nmIn := fnt.NumIn()
-	var inls []reflect.Value
+	inls := make([]reflect.Value, nmIn)
 	ind := 1
-	if self == nil {
-		inls = make([]reflect.Value, nmIn)
-	} else {
-		inls = make([]reflect.Value, nmIn-1)
+	inls[0] = reflect.ValueOf(c)
+	if self != nil {
+		inls[1] = reflect.ValueOf(c)
 		ind = 2
 	}
-	inls[0] = reflect.ValueOf(c)
 	for i := ind; i < nmIn; i++ {
 		argt := fnt.In(i)
 		argtr := argt
@@ -46,6 +44,9 @@ func appendParams(self *reflect.Value, c *Context, fnt reflect.Type) ([]reflect.
 		} else if argtr.Kind() == reflect.String {
 			inls[i] = reflect.ValueOf(string(c.BodyBytes()))
 		}
+	}
+	if self != nil {
+		return inls[1:], nil
 	}
 	return inls, nil
 }

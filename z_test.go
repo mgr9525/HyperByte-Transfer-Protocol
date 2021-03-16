@@ -47,7 +47,7 @@ func TestRequest(t *testing.T) {
 type testFuns struct {
 }
 
-func (testFuns) GetName(c *Context) {
+func (testFuns) GetName(c *Context, hdr *Header) {
 	c.ResHeader().Set("cookie", "1234567")
 	c.ResString(ResStatusOk, "ok")
 }

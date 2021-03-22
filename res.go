@@ -17,6 +17,9 @@ type Context struct {
 	hdrs *Header
 }
 
+func (c *Context) Conn() net.Conn {
+	return c.conn
+}
 func (c *Context) GetConn() net.Conn {
 	c.clve = false
 	return c.conn

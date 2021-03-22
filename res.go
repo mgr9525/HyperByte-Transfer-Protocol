@@ -8,6 +8,7 @@ import (
 )
 
 type Context struct {
+	clve bool
 	conn net.Conn
 	hds  []byte
 	bds  []byte
@@ -17,9 +18,8 @@ type Context struct {
 }
 
 func (c *Context) GetConn() net.Conn {
-	conn := c.conn
-	c.conn = nil
-	return conn
+	c.clve = false
+	return c.conn
 }
 func (c *Context) ReqHeader() (*Header, error) {
 	if c.hds == nil {

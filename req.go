@@ -11,7 +11,7 @@ import (
 )
 
 type Request struct {
-	cok  bool
+	clve bool
 	conn net.Conn
 	code int
 	hds  []byte
@@ -67,7 +67,7 @@ func NewRequest(addr string, timeout ...time.Duration) (*Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	cli := &Request{cok: true, conn: conn}
+	cli := &Request{clve: true, conn: conn}
 	//cli.handleConn()
 	return cli, nil
 }
@@ -187,11 +187,11 @@ func (c *Request) Do(code int, body interface{}, hds ...[]byte) error {
 	return c.Res()
 }
 func (c *Request) GetConn() net.Conn {
-	c.cok = false
+	c.clve = false
 	return c.conn
 }
 func (c *Request) Close() error {
-	if c.cok {
+	if c.clve {
 		return c.conn.Close()
 	}
 	return nil

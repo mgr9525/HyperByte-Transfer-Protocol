@@ -143,6 +143,7 @@ func (c *Engine) handleConn(conn *net.TCPConn) {
 	}
 
 	needclose = c.recoverCallMapfn(mcode, &Context{
+		clve: true,
 		conn: conn,
 		hds:  hdbts,
 		bds:  bdbts,
@@ -164,7 +165,7 @@ func (c *Engine) recoverCallMapfn(mcode int, res *Context) (rt bool) {
 	if ok && fn != nil {
 		fn(res)
 	}
-	return res.conn != nil
+	return res.clve
 }
 
 func (c *Engine) RegFun(mcode int, fn ConnFun) bool {

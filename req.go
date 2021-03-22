@@ -115,51 +115,53 @@ func (c *Request) send(code int, bds []byte, hds ...[]byte) error {
 	}
 	return nil
 }
-func (c *Request) Res() (int, []byte, []byte, error) {
+func (c *Request) Res() error {
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
 	bts, err := utils.TcpRead(ctx, c.conn, 4)
 	if err != nil {
 		println(fmt.Sprintf("Request Res err:%+v", err))
-		return 0, nil, nil, err
+		return err
 	}
-	control := int(utils.BigByteToInt(bts))
+	c.code = int(utils.BigByteToInt(bts))
 	bts, err = utils.TcpRead(ctx, c.conn, 4)
 	if err != nil {
 		println(fmt.Sprintf("Request Res err:%+v", err))
-		return 0, nil, nil, err
+		return err
 	}
 	hln := uint(utils.BigByteToInt(bts))
 	if hln > conf.maxHead {
 		println(fmt.Sprintf("Request Res head size out max:%d/%d", hln, conf.maxHead))
-		return 0, nil, nil, errors.New("head len out max")
+		return errors.New("head len out max")
 	}
 	ctx, _ = context.WithTimeout(context.Background(), conf.tmsHead)
 	var hdbts []byte
 	if hln > 0 {
 		hdbts, err = utils.TcpRead(ctx, c.conn, hln)
 		if err != nil {
-			return control, nil, nil, err
+			return err
 		}
 	}
 	bts, err = utils.TcpRead(ctx, c.conn, 4)
 	if err != nil {
 		println(fmt.Sprintf("Request Res err:%+v", err))
-		return control, nil, nil, err
+		return err
 	}
 	bln := uint(utils.BigByteToInt(bts))
 	if bln > conf.maxBody {
 		println(fmt.Sprintf("Request Res body size out max:%d/%d", bln, conf.maxBody))
-		return 0, nil, nil, errors.New("body len out max")
+		return errors.New("body len out max")
 	}
 	ctx, _ = context.WithTimeout(context.Background(), conf.tmsBody)
 	var bdbts []byte
 	if bln > 0 {
 		bdbts, err = utils.TcpRead(ctx, c.conn, bln)
 		if err != nil {
-			return control, nil, nil, err
+			return err
 		}
 	}
-	return control, hdbts, bdbts, nil
+	c.hds = hdbts
+	c.bds = bdbts
+	return nil
 }
 func (c *Request) DoNoRes(code int, body interface{}, hds ...[]byte) error {
 	var err error
@@ -182,8 +184,7 @@ func (c *Request) Do(code int, body interface{}, hds ...[]byte) error {
 	if err != nil {
 		return err
 	}
-	c.code, c.hds, c.bds, err = c.Res()
-	return err
+	return c.Res()
 }
 func (c *Request) GetConn() net.Conn {
 	c.cok = false

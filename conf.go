@@ -4,6 +4,7 @@ import "time"
 
 var conf = newConf()
 
+type Mp map[string]interface{}
 type config struct {
 	tmsHead time.Duration
 	tmsBody time.Duration

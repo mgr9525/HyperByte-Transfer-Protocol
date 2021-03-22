@@ -11,6 +11,7 @@ import (
 )
 
 type Request struct {
+	cok  bool
 	conn net.Conn
 	code int
 	hds  []byte
@@ -66,7 +67,7 @@ func NewRequest(addr string, timeout ...time.Duration) (*Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	cli := &Request{conn: conn}
+	cli := &Request{cok: true, conn: conn}
 	//cli.handleConn()
 	return cli, nil
 }
@@ -78,7 +79,7 @@ func NewRPCReq(addr string, path string, timeout ...time.Duration) (*Request, er
 	req.ReqHeader().Path = path
 	return req, nil
 }
-func (c *Request) send(control int, bds []byte, hds ...[]byte) error {
+func (c *Request) send(code int, bds []byte, hds ...[]byte) error {
 	var hd []byte
 	if len(hds) > 0 {
 		hd = hds[0]
@@ -90,7 +91,7 @@ func (c *Request) send(control int, bds []byte, hds ...[]byte) error {
 	if err != nil {
 		return err
 	}
-	ctrls := utils.BigIntToByte(int64(control), 4)
+	ctrls := utils.BigIntToByte(int64(code), 4)
 	if _, err := c.conn.Write(ctrls); err != nil {
 		return err
 	}
@@ -112,13 +113,9 @@ func (c *Request) send(control int, bds []byte, hds ...[]byte) error {
 			return err
 		}
 	}
-	c.code, c.hds, c.bds, err = c.res()
-	if err != nil {
-		return err
-	}
 	return nil
 }
-func (c *Request) res() (int, []byte, []byte, error) {
+func (c *Request) Res() (int, []byte, []byte, error) {
 	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
 	bts, err := utils.TcpRead(ctx, c.conn, 4)
 	if err != nil {
@@ -164,7 +161,7 @@ func (c *Request) res() (int, []byte, []byte, error) {
 	}
 	return control, hdbts, bdbts, nil
 }
-func (c *Request) Do(control int, body interface{}, hds ...[]byte) error {
+func (c *Request) DoNoRes(code int, body interface{}, hds ...[]byte) error {
 	var err error
 	var bdbts []byte
 	if body != nil {
@@ -178,17 +175,23 @@ func (c *Request) Do(control int, body interface{}, hds ...[]byte) error {
 			}
 		}
 	}
-
-	return c.send(control, bdbts, hds...)
+	return c.send(code, bdbts, hds...)
+}
+func (c *Request) Do(code int, body interface{}, hds ...[]byte) error {
+	err := c.DoNoRes(code, body, hds...)
+	if err != nil {
+		return err
+	}
+	c.code, c.hds, c.bds, err = c.Res()
+	return err
 }
 func (c *Request) GetConn() net.Conn {
-	conn := c.conn
-	c.conn = nil
-	return conn
+	c.cok = false
+	return c.conn
 }
 func (c *Request) Close() error {
-	if c.conn == nil {
-		return nil
+	if c.cok {
+		return c.conn.Close()
 	}
-	return c.conn.Close()
+	return nil
 }

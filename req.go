@@ -13,6 +13,7 @@ import (
 type Request struct {
 	clve bool
 	conn net.Conn
+	fs   int
 	code int
 	hds  []byte
 	bds  []byte
@@ -58,7 +59,7 @@ func (c *Request) ResBodyJson(bd interface{}) error {
 	return json.Unmarshal(c.bds, bd)
 }
 
-func NewRequest(addr string, timeout ...time.Duration) (*Request, error) {
+func NewRequest(addr string, code int, timeout ...time.Duration) (*Request, error) {
 	tmo := time.Second * 5
 	if len(timeout) > 0 {
 		tmo = timeout[0]
@@ -67,19 +68,23 @@ func NewRequest(addr string, timeout ...time.Duration) (*Request, error) {
 	if err != nil {
 		return nil, err
 	}
-	cli := &Request{clve: true, conn: conn}
+	cli := &Request{
+		clve: true,
+		conn: conn,
+		fs:   code,
+	}
 	//cli.handleConn()
 	return cli, nil
 }
-func NewRPCReq(addr string, path string, timeout ...time.Duration) (*Request, error) {
-	req, err := NewRequest(addr, timeout...)
+func NewRPCReq(addr string, code int, path string, timeout ...time.Duration) (*Request, error) {
+	req, err := NewRequest(addr, code, timeout...)
 	if err != nil {
 		return nil, err
 	}
 	req.ReqHeader().Path = path
 	return req, nil
 }
-func (c *Request) send(code int, bds []byte, hds ...[]byte) error {
+func (c *Request) send(bds []byte, hds ...[]byte) error {
 	var hd []byte
 	if len(hds) > 0 {
 		hd = hds[0]
@@ -91,7 +96,7 @@ func (c *Request) send(code int, bds []byte, hds ...[]byte) error {
 	if err != nil {
 		return err
 	}
-	ctrls := utils.BigIntToByte(int64(code), 4)
+	ctrls := utils.BigIntToByte(int64(c.fs), 4)
 	if _, err := c.conn.Write(ctrls); err != nil {
 		return err
 	}
@@ -163,7 +168,7 @@ func (c *Request) Res() error {
 	c.bds = bdbts
 	return nil
 }
-func (c *Request) DoNoRes(code int, body interface{}, hds ...[]byte) error {
+func (c *Request) DoNoRes(body interface{}, hds ...[]byte) error {
 	var err error
 	var bdbts []byte
 	if body != nil {
@@ -177,10 +182,10 @@ func (c *Request) DoNoRes(code int, body interface{}, hds ...[]byte) error {
 			}
 		}
 	}
-	return c.send(code, bdbts, hds...)
+	return c.send(bdbts, hds...)
 }
-func (c *Request) Do(code int, body interface{}, hds ...[]byte) error {
-	err := c.DoNoRes(code, body, hds...)
+func (c *Request) Do(body interface{}, hds ...[]byte) error {
+	err := c.DoNoRes(body, hds...)
 	if err != nil {
 		return err
 	}

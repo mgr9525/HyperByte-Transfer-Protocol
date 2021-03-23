@@ -59,7 +59,7 @@ func (c *Request) ResBodyJson(bd interface{}) error {
 	return json.Unmarshal(c.bds, bd)
 }
 
-func NewRequest(addr string, code int, timeout ...time.Duration) (*Request, error) {
+func NewRequest(addr string, fs int, timeout ...time.Duration) (*Request, error) {
 	tmo := time.Second * 5
 	if len(timeout) > 0 {
 		tmo = timeout[0]
@@ -71,13 +71,13 @@ func NewRequest(addr string, code int, timeout ...time.Duration) (*Request, erro
 	cli := &Request{
 		clve: true,
 		conn: conn,
-		fs:   code,
+		fs:   fs,
 	}
 	//cli.handleConn()
 	return cli, nil
 }
-func NewRPCReq(addr string, code int, path string, timeout ...time.Duration) (*Request, error) {
-	req, err := NewRequest(addr, code, timeout...)
+func NewRPCReq(addr string, fs int, path string, timeout ...time.Duration) (*Request, error) {
+	req, err := NewRequest(addr, fs, timeout...)
 	if err != nil {
 		return nil, err
 	}

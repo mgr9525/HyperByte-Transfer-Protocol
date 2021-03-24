@@ -23,14 +23,14 @@ func helloWorldFun(c *Context, hdr *Header) {
 }
 
 func TestRequest(t *testing.T) {
-	req, err := NewRequest("localhost:7030")
+	req, err := NewRequest("localhost:7030", 2)
 	if err != nil {
 		println("NewRequest err:", err.Error())
 		return
 	}
 	defer req.Close()
 	//req.ReqHeader().Set("host", "test.host.com")
-	err = req.Do(1, []byte("hello world"))
+	err = req.Do([]byte("hello world"))
 	if err != nil {
 		println("NewRequest err:", err.Error())
 		return
@@ -45,10 +45,12 @@ func TestRequest(t *testing.T) {
 }
 
 type testFuns struct {
+	tstb bool
 }
 
 func (testFuns) AuthFun() AuthFun {
 	return func(c *Context) bool {
+		println("call testFuns.AuthFun")
 		hdr, err := c.ReqHeader()
 		if err != nil {
 			c.ResString(ResStatusErr, "head err")
@@ -61,28 +63,54 @@ func (testFuns) AuthFun() AuthFun {
 		return true
 	}
 }
-func (testFuns) GetName(c *Context, hdr *Header) {
+func (e testFuns) GetName1(c *Context, hdr *Header) {
+	println("call testFuns.GetName1:", e.tstb)
+	c.ResHeader().Set("cookie", "1234567")
+	c.ResString(ResStatusOk, "ok")
+}
+func (e *testFuns) GetName2(c *Context, hdr *Header) {
+	println("call testFuns.GetName2:", e.tstb)
 	c.ResHeader().Set("cookie", "1234567")
 	c.ResString(ResStatusOk, "ok")
 }
 func TestRPCReq(t *testing.T) {
-	req, err := NewRPCReq("localhost:7030", "GetName")
+	req, err := NewRPCReq("localhost:7030", 2, "GetName1")
 	if err != nil {
 		println("NewRequest err:", err.Error())
 		return
 	}
 	defer req.Close()
 	req.ReqHeader().Token = "123456"
-	err = req.Do(2, []byte("hello world"))
+	err = req.Do([]byte("hello world"))
 	if err != nil {
 		println("NewRequest err:", err.Error())
 		return
 	}
-	println("req code:", req.ResCode())
+	println("GetName1 req code:", req.ResCode())
 	hdr, err := req.ResHeader()
 	if err == nil {
 		cookie, _ := hdr.GetString("cookie")
 		println("req cookie:", cookie)
 	}
-	println("req body:", string(req.ResBodyBytes()))
+	println("GetName1 req body:", string(req.ResBodyBytes()))
+
+	req, err = NewRPCReq("localhost:7030", 2, "GetName2")
+	if err != nil {
+		println("NewRequest err:", err.Error())
+		return
+	}
+	defer req.Close()
+	req.ReqHeader().Token = "123456"
+	err = req.Do([]byte("hello world"))
+	if err != nil {
+		println("NewRequest err:", err.Error())
+		return
+	}
+	println("GetName2 req code:", req.ResCode())
+	hdr, err = req.ResHeader()
+	if err == nil {
+		cookie, _ := hdr.GetString("cookie")
+		println("req cookie:", cookie)
+	}
+	println("GetName2 req body:", string(req.ResBodyBytes()))
 }

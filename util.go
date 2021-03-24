@@ -83,15 +83,16 @@ func ParamFunHandle(fn interface{}, authfn ...AuthFun) ConnFun {
 func RPCFunHandle(t IRPCRoute) ConnFun {
 	tv := reflect.ValueOf(t)
 	ty := tv.Type()
-	tyr := ty
-	if ty.Kind() == reflect.Ptr {
-		tyr = ty.Elem()
+	if ty.Kind() != reflect.Ptr {
+		panic("route must struct pointer")
 	}
+	tyr := ty.Elem()
 	if tyr.Kind() != reflect.Struct {
 		return nil
 	}
 
-	mln := tyr.NumMethod()
+	mln1 := ty.NumMethod()
+	//mln2 := tyr.NumMethod()
 	mfn := t.AuthFun()
 	return func(c *Context) {
 		hdr, err := c.ReqHeader()
@@ -103,8 +104,8 @@ func RPCFunHandle(t IRPCRoute) ConnFun {
 			return
 		}
 
-		for i := 0; i < mln; i++ {
-			mty := tyr.Method(i)
+		for i := 0; i < mln1; i++ {
+			mty := ty.Method(i)
 			if hdr.Path == mty.Name {
 				inls, err := appendParams(&tv, c, mty.Type)
 				if err != nil {

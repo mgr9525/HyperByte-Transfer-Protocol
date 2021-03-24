@@ -191,6 +191,9 @@ func (c *Request) Do(body interface{}, hds ...[]byte) error {
 	}
 	return c.Res()
 }
+func (c *Request) Conn() net.Conn {
+	return c.conn
+}
 func (c *Request) GetConn() net.Conn {
 	c.clve = false
 	return c.conn

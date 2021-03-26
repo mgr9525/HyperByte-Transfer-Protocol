@@ -10,6 +10,7 @@ import (
 type Context struct {
 	clve bool
 	conn net.Conn
+	code int
 	hds  []byte
 	bds  []byte
 
@@ -44,6 +45,9 @@ func (c *Context) ResHeader() *Header {
 	}
 	c.hdrs = &Header{}
 	return c.hdrs
+}
+func (c *Context) Code() int {
+	return c.code
 }
 func (c *Context) HeadBytes() []byte {
 	return c.hds

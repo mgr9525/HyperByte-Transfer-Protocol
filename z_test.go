@@ -45,10 +45,10 @@ func TestRequest(t *testing.T) {
 }
 
 type testFuns struct {
-	tstb bool
+	tstb *map[string]string
 }
 
-func (testFuns) AuthFun() AuthFun {
+func (*testFuns) AuthFun() AuthFun {
 	return func(c *Context) bool {
 		println("call testFuns.AuthFun")
 		hdr, err := c.ReqHeader()
@@ -63,13 +63,17 @@ func (testFuns) AuthFun() AuthFun {
 		return true
 	}
 }
-func (e testFuns) GetName1(c *Context, hdr *Header) {
+func (e *testFuns) GetName1(c *Context, hdr *Header, body string) {
+	mp := make(map[string]string)
+	mp["aaa"] = "bbb"
+	e.tstb = &mp
 	println("call testFuns.GetName1:", e.tstb)
-	c.ResHeader().Set("cookie", "1234567")
+	c.ResHeader().Set("cookie", body)
 	c.ResString(ResStatusOk, "ok")
 }
 func (e *testFuns) GetName2(c *Context, hdr *Header) {
 	println("call testFuns.GetName2:", e.tstb)
+	println("call testFuns.GetName2 aa:", (*e.tstb)["aaa"])
 	c.ResHeader().Set("cookie", "1234567")
 	c.ResString(ResStatusOk, "ok")
 }

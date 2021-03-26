@@ -145,6 +145,7 @@ func (c *Engine) handleConn(conn *net.TCPConn) {
 	needclose = c.recoverCallMapfn(mcode, &Context{
 		clve: true,
 		conn: conn,
+		code: mcode,
 		hds:  hdbts,
 		bds:  bdbts,
 	})

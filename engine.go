@@ -3,7 +3,6 @@ package hbtp
 import (
 	"context"
 	"fmt"
-	"github.com/mgr9525/HyperByte-Transfer-Protocol/utils"
 	"net"
 	"runtime/debug"
 	"sync"
@@ -47,7 +46,7 @@ func (c *Engine) Run(host string) error {
 	c.lsr = lsr
 	//go func() {
 	println("hbtp run on:" + host)
-	for !utils.CheckContext(c.ctx) {
+	for !EndContext(c.ctx) {
 		c.runAcp()
 		time.Sleep(time.Millisecond * 100)
 	}
@@ -87,7 +86,7 @@ func (c *Engine) handleConn(conn *net.TCPConn) {
 	}()
 
 	ctx, _ := context.WithTimeout(c.ctx, time.Second*10)
-	bts, err := utils.TcpRead(ctx, conn, 2)
+	bts, err := TcpRead(ctx, conn, 2)
 	if err != nil {
 		println(fmt.Sprintf("Engine handleConn handleRead err:%+v", err))
 		return
@@ -96,18 +95,18 @@ func (c *Engine) handleConn(conn *net.TCPConn) {
 		println(fmt.Sprintf("Engine handleConn handleRead err:%+v", err))
 		return
 	}
-	bts, err = utils.TcpRead(ctx, conn, 4)
+	bts, err = TcpRead(ctx, conn, 4)
 	if err != nil {
 		println(fmt.Sprintf("Engine handleConn handleRead err:%+v", err))
 		return
 	}
-	mcode := int(utils.BigByteToInt(bts))
-	bts, err = utils.TcpRead(ctx, conn, 4)
+	mcode := int(BigByteToInt(bts))
+	bts, err = TcpRead(ctx, conn, 4)
 	if err != nil {
 		println(fmt.Sprintf("Engine handleConn handleRead err:%+v", err))
 		return
 	}
-	hdln := uint(utils.BigByteToInt(bts))
+	hdln := uint(BigByteToInt(bts))
 	if hdln > c.maxHead {
 		println(fmt.Sprintf("Engine handleConn handleRead head size out max:%d/%d", hdln, c.maxHead))
 		return
@@ -115,19 +114,19 @@ func (c *Engine) handleConn(conn *net.TCPConn) {
 	ctx, _ = context.WithTimeout(c.ctx, c.tmsHead)
 	var hdbts []byte
 	if hdln > 0 {
-		hdbts, err = utils.TcpRead(ctx, conn, hdln)
+		hdbts, err = TcpRead(ctx, conn, hdln)
 		if err != nil {
 			println(fmt.Sprintf("Engine handleConn handleRead err:%+v", err))
 			return
 		}
 	}
 
-	bts, err = utils.TcpRead(ctx, conn, 4)
+	bts, err = TcpRead(ctx, conn, 4)
 	if err != nil {
 		println(fmt.Sprintf("Engine handleConn handleRead err:%+v", err))
 		return
 	}
-	bdln := uint(utils.BigByteToInt(bts))
+	bdln := uint(BigByteToInt(bts))
 	if bdln > c.maxBody {
 		println(fmt.Sprintf("Engine handleConn handleRead body size out max:%d/%d", bdln, c.maxBody))
 		return
@@ -135,7 +134,7 @@ func (c *Engine) handleConn(conn *net.TCPConn) {
 	ctx, _ = context.WithTimeout(c.ctx, c.tmsBody)
 	var bdbts []byte
 	if bdln > 0 {
-		bdbts, err = utils.TcpRead(ctx, conn, bdln)
+		bdbts, err = TcpRead(ctx, conn, bdln)
 		if err != nil {
 			println(fmt.Sprintf("Engine handleConn handleRead err:%+v", err))
 			return

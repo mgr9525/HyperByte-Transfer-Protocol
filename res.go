@@ -3,7 +3,6 @@ package hbtp
 import (
 	"encoding/json"
 	"errors"
-	"github.com/mgr9525/HyperByte-Transfer-Protocol/utils"
 	"net"
 )
 
@@ -57,13 +56,13 @@ func (c *Context) BodyBytes() []byte {
 }
 
 func (c *Context) response(control int, hds []byte, conts []byte) error {
-	ctrls := utils.BigIntToByte(int64(control), 4)
+	ctrls := BigIntToByte(int64(control), 4)
 	//wtr:=bufio.NewWriter(conn)
 	_, err := c.conn.Write(ctrls)
 	if err != nil {
 		return err
 	}
-	hdln := utils.BigIntToByte(int64(len(hds)), 4)
+	hdln := BigIntToByte(int64(len(hds)), 4)
 	if err != nil {
 		return err
 	}
@@ -74,7 +73,7 @@ func (c *Context) response(control int, hds []byte, conts []byte) error {
 			return err
 		}
 	}
-	contln := utils.BigIntToByte(int64(len(conts)), 4)
+	contln := BigIntToByte(int64(len(conts)), 4)
 	if err != nil {
 		return err
 	}

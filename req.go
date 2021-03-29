@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/mgr9525/HyperByte-Transfer-Protocol/utils"
 	"net"
 	"time"
 )
@@ -18,7 +17,8 @@ type Request struct {
 	hds  []byte
 	bds  []byte
 
-	ctx context.Context
+	ctx  context.Context
+	cncl context.CancelFunc
 
 	hdr  *Header
 	hdrs *Header
@@ -75,6 +75,7 @@ func NewRequest(addr string, fs int, timeout ...time.Duration) (*Request, error)
 		conn: conn,
 		fs:   fs,
 	}
+	cli.ctx, cli.cncl = context.WithCancel(context.Background())
 	//cli.handleConn()
 	return cli, nil
 }
@@ -98,16 +99,16 @@ func (c *Request) send(bds []byte, hds ...[]byte) error {
 	if err != nil {
 		return err
 	}
-	ctrls := utils.BigIntToByte(int64(c.fs), 4)
-	hdln := utils.BigIntToByte(int64(len(hd)), 4)
-	contln := utils.BigIntToByte(int64(len(bds)), 4)
+	ctrls := BigIntToByte(int64(c.fs), 4)
+	hdln := BigIntToByte(int64(len(hd)), 4)
+	contln := BigIntToByte(int64(len(bds)), 4)
 	if _, err := c.conn.Write(ctrls); err != nil {
 		return err
 	}
 	if _, err := c.conn.Write(hdln); err != nil {
 		return err
 	}
-	if !utils.CheckContext(c.ctx) {
+	if EndContext(c.ctx) {
 		return errors.New("context dead")
 	}
 	if hd != nil {
@@ -115,7 +116,7 @@ func (c *Request) send(bds []byte, hds ...[]byte) error {
 			return err
 		}
 	}
-	if !utils.CheckContext(c.ctx) {
+	if EndContext(c.ctx) {
 		return errors.New("context dead")
 	}
 	if _, err := c.conn.Write(contln); err != nil {
@@ -129,42 +130,42 @@ func (c *Request) send(bds []byte, hds ...[]byte) error {
 	return nil
 }
 func (c *Request) Res() error {
-	bts, err := utils.TcpRead(c.ctx, c.conn, 4)
+	bts, err := TcpRead(c.ctx, c.conn, 4)
 	if err != nil {
 		println(fmt.Sprintf("Request Res err:%+v", err))
 		return err
 	}
-	c.code = int(utils.BigByteToInt(bts))
-	bts, err = utils.TcpRead(c.ctx, c.conn, 4)
+	c.code = int(BigByteToInt(bts))
+	bts, err = TcpRead(c.ctx, c.conn, 4)
 	if err != nil {
 		println(fmt.Sprintf("Request Res err:%+v", err))
 		return err
 	}
-	hln := uint(utils.BigByteToInt(bts))
+	hln := uint(BigByteToInt(bts))
 	if hln > conf.maxHead {
 		println(fmt.Sprintf("Request Res head size out max:%d/%d", hln, conf.maxHead))
 		return errors.New("head len out max")
 	}
 	var hdbts []byte
 	if hln > 0 {
-		hdbts, err = utils.TcpRead(c.ctx, c.conn, hln)
+		hdbts, err = TcpRead(c.ctx, c.conn, hln)
 		if err != nil {
 			return err
 		}
 	}
-	bts, err = utils.TcpRead(c.ctx, c.conn, 4)
+	bts, err = TcpRead(c.ctx, c.conn, 4)
 	if err != nil {
 		println(fmt.Sprintf("Request Res err:%+v", err))
 		return err
 	}
-	bln := uint(utils.BigByteToInt(bts))
+	bln := uint(BigByteToInt(bts))
 	if bln > conf.maxBody {
 		println(fmt.Sprintf("Request Res body size out max:%d/%d", bln, conf.maxBody))
 		return errors.New("body len out max")
 	}
 	var bdbts []byte
 	if bln > 0 {
-		bdbts, err = utils.TcpRead(c.ctx, c.conn, bln)
+		bdbts, err = TcpRead(c.ctx, c.conn, bln)
 		if err != nil {
 			return err
 		}
@@ -173,11 +174,7 @@ func (c *Request) Res() error {
 	c.bds = bdbts
 	return nil
 }
-func (c *Request) DoNoRes(ctx context.Context, body interface{}, hds ...[]byte) error {
-	c.ctx = ctx
-	if ctx == nil {
-		c.ctx = context.Background()
-	}
+func (c *Request) DoNoRes(body interface{}, hds ...[]byte) error {
 	var err error
 	var bdbts []byte
 	if body != nil {
@@ -193,8 +190,8 @@ func (c *Request) DoNoRes(ctx context.Context, body interface{}, hds ...[]byte) 
 	}
 	return c.send(bdbts, hds...)
 }
-func (c *Request) Do(ctx context.Context, body interface{}, hds ...[]byte) error {
-	err := c.DoNoRes(ctx, body, hds...)
+func (c *Request) Do(body interface{}, hds ...[]byte) error {
+	err := c.DoNoRes(body, hds...)
 	if err != nil {
 		return err
 	}
@@ -210,6 +207,9 @@ func (c *Request) GetConn() net.Conn {
 func (c *Request) Close() error {
 	if c.clve {
 		return c.conn.Close()
+	}
+	if c.cncl != nil {
+		c.cncl()
 	}
 	return nil
 }

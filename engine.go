@@ -86,7 +86,7 @@ func (c *Engine) handleConn(conn *net.TCPConn) {
 		}
 	}()
 
-	ctx, _ := context.WithTimeout(c.ctx, time.Second*5)
+	ctx, _ := context.WithTimeout(c.ctx, time.Second*10)
 	bts, err := utils.TcpRead(ctx, conn, 2)
 	if err != nil {
 		println(fmt.Sprintf("Engine handleConn handleRead err:%+v", err))

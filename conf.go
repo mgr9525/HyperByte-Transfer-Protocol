@@ -14,8 +14,8 @@ type config struct {
 
 func newConf() config {
 	return config{
-		tmsHead: time.Second * 10,   //10s
-		tmsBody: time.Second * 20,   //20s
+		tmsHead: time.Second * 20,   //10s
+		tmsBody: time.Second * 30,   //20s
 		maxHead: 1024 * 1024 * 100,  //100M
 		maxBody: 1024 * 1024 * 1024, //1G
 	}

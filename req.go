@@ -18,6 +18,8 @@ type Request struct {
 	hds  []byte
 	bds  []byte
 
+	ctx context.Context
+
 	hdr  *Header
 	hdrs *Header
 }
@@ -97,19 +99,25 @@ func (c *Request) send(bds []byte, hds ...[]byte) error {
 		return err
 	}
 	ctrls := utils.BigIntToByte(int64(c.fs), 4)
+	hdln := utils.BigIntToByte(int64(len(hd)), 4)
+	contln := utils.BigIntToByte(int64(len(bds)), 4)
 	if _, err := c.conn.Write(ctrls); err != nil {
 		return err
 	}
-	hdln := utils.BigIntToByte(int64(len(hd)), 4)
 	if _, err := c.conn.Write(hdln); err != nil {
 		return err
+	}
+	if !utils.CheckContext(c.ctx) {
+		return errors.New("context dead")
 	}
 	if hd != nil {
 		if _, err := c.conn.Write(hd); err != nil {
 			return err
 		}
 	}
-	contln := utils.BigIntToByte(int64(len(bds)), 4)
+	if !utils.CheckContext(c.ctx) {
+		return errors.New("context dead")
+	}
 	if _, err := c.conn.Write(contln); err != nil {
 		return err
 	}
@@ -121,14 +129,13 @@ func (c *Request) send(bds []byte, hds ...[]byte) error {
 	return nil
 }
 func (c *Request) Res() error {
-	ctx, _ := context.WithTimeout(context.Background(), time.Second*5)
-	bts, err := utils.TcpRead(ctx, c.conn, 4)
+	bts, err := utils.TcpRead(c.ctx, c.conn, 4)
 	if err != nil {
 		println(fmt.Sprintf("Request Res err:%+v", err))
 		return err
 	}
 	c.code = int(utils.BigByteToInt(bts))
-	bts, err = utils.TcpRead(ctx, c.conn, 4)
+	bts, err = utils.TcpRead(c.ctx, c.conn, 4)
 	if err != nil {
 		println(fmt.Sprintf("Request Res err:%+v", err))
 		return err
@@ -138,15 +145,14 @@ func (c *Request) Res() error {
 		println(fmt.Sprintf("Request Res head size out max:%d/%d", hln, conf.maxHead))
 		return errors.New("head len out max")
 	}
-	ctx, _ = context.WithTimeout(context.Background(), conf.tmsHead)
 	var hdbts []byte
 	if hln > 0 {
-		hdbts, err = utils.TcpRead(ctx, c.conn, hln)
+		hdbts, err = utils.TcpRead(c.ctx, c.conn, hln)
 		if err != nil {
 			return err
 		}
 	}
-	bts, err = utils.TcpRead(ctx, c.conn, 4)
+	bts, err = utils.TcpRead(c.ctx, c.conn, 4)
 	if err != nil {
 		println(fmt.Sprintf("Request Res err:%+v", err))
 		return err
@@ -156,10 +162,9 @@ func (c *Request) Res() error {
 		println(fmt.Sprintf("Request Res body size out max:%d/%d", bln, conf.maxBody))
 		return errors.New("body len out max")
 	}
-	ctx, _ = context.WithTimeout(context.Background(), conf.tmsBody)
 	var bdbts []byte
 	if bln > 0 {
-		bdbts, err = utils.TcpRead(ctx, c.conn, bln)
+		bdbts, err = utils.TcpRead(c.ctx, c.conn, bln)
 		if err != nil {
 			return err
 		}
@@ -168,7 +173,11 @@ func (c *Request) Res() error {
 	c.bds = bdbts
 	return nil
 }
-func (c *Request) DoNoRes(body interface{}, hds ...[]byte) error {
+func (c *Request) DoNoRes(ctx context.Context, body interface{}, hds ...[]byte) error {
+	c.ctx = ctx
+	if ctx == nil {
+		c.ctx = context.Background()
+	}
 	var err error
 	var bdbts []byte
 	if body != nil {
@@ -184,8 +193,8 @@ func (c *Request) DoNoRes(body interface{}, hds ...[]byte) error {
 	}
 	return c.send(bdbts, hds...)
 }
-func (c *Request) Do(body interface{}, hds ...[]byte) error {
-	err := c.DoNoRes(body, hds...)
+func (c *Request) Do(ctx context.Context, body interface{}, hds ...[]byte) error {
+	err := c.DoNoRes(ctx, body, hds...)
 	if err != nil {
 		return err
 	}

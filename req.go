@@ -181,6 +181,8 @@ func (c *Request) DoNoRes(body interface{}, hds ...[]byte) error {
 		switch body.(type) {
 		case []byte:
 			bdbts = body.([]byte)
+		case string:
+			bdbts = []byte(body.(string))
 		default:
 			bdbts, err = json.Marshal(body)
 			if err != nil {

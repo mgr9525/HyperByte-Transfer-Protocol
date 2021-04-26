@@ -130,7 +130,9 @@ func (c *Request) send(bds []byte, hds ...[]byte) error {
 	return nil
 }
 func (c *Request) Res() error {
+	tms := time.Now()
 	bts, err := TcpRead(c.ctx, c.conn, 4)
+	println(fmt.Sprintf("Request.Res1 end times:%0.5fs", time.Since(tms).Seconds()))
 	if err != nil {
 		println(fmt.Sprintf("Request Res err:%+v", err))
 		return err

@@ -48,7 +48,6 @@ func (c *Engine) Run(host string) error {
 	println("hbtp run on:" + host)
 	for !EndContext(c.ctx) {
 		c.runAcp()
-		time.Sleep(time.Millisecond * 100)
 	}
 	//}()
 	return nil
@@ -61,7 +60,7 @@ func (c *Engine) runAcp() {
 		}
 	}()
 	if c.lsr == nil {
-		time.Sleep(time.Millisecond)
+		time.Sleep(time.Millisecond * 100)
 		return
 	}
 	conn, err := c.lsr.AcceptTCP()
@@ -79,7 +78,9 @@ func (c *Engine) handleConn(conn *net.TCPConn) {
 		}
 	}()
 	needclose := true
+	tms := time.Now()
 	defer func() {
+		println(fmt.Sprintf("handleConn end times:%0.5fs,close:%t", time.Since(tms).Seconds(), needclose))
 		if needclose {
 			conn.Close()
 		}

@@ -78,9 +78,7 @@ func (c *Engine) handleConn(conn *net.TCPConn) {
 		}
 	}()
 	needclose := true
-	tms := time.Now()
 	defer func() {
-		println(fmt.Sprintf("handleConn end times:%0.5fs,close:%t", time.Since(tms).Seconds(), needclose))
 		if needclose {
 			conn.Close()
 		}

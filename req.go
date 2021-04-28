@@ -213,6 +213,11 @@ func (c *Request) Do(ctx context.Context, body interface{}, hds ...[]byte) error
 	}
 	return c.Res()
 }
+
+/*
+	if ownership is `true`,the conn is never close!
+	so you need close manual.
+*/
 func (c *Request) Conn(ownership ...bool) net.Conn {
 	if len(ownership) > 0 {
 		c.clve = !ownership[0]

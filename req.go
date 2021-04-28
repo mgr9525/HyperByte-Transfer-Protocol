@@ -75,7 +75,6 @@ func NewRequest(addr string, fs int, timeout ...time.Duration) (*Request, error)
 		conn: conn,
 		fs:   fs,
 	}
-	cli.ctx, cli.cncl = context.WithCancel(context.Background())
 	//cli.handleConn()
 	return cli, nil
 }
@@ -86,6 +85,13 @@ func NewRPCReq(addr string, fs int, path string, timeout ...time.Duration) (*Req
 	}
 	req.ReqHeader().Path = path
 	return req, nil
+}
+func (c *Request) SetContext(ctx context.Context) {
+	if ctx == nil {
+		return
+	}
+	c.ctx = ctx
+	c.cncl = nil
 }
 func (c *Request) send(bds []byte, hds ...[]byte) error {
 	var hd []byte
@@ -130,6 +136,9 @@ func (c *Request) send(bds []byte, hds ...[]byte) error {
 	return nil
 }
 func (c *Request) Res() error {
+	if c.ctx == nil {
+		return errors.New("need do some thing")
+	}
 	bts, err := TcpRead(c.ctx, c.conn, 4)
 	if err != nil {
 		println(fmt.Sprintf("Request Res err:%+v", err))
@@ -174,7 +183,12 @@ func (c *Request) Res() error {
 	c.bds = bdbts
 	return nil
 }
-func (c *Request) DoNoRes(body interface{}, hds ...[]byte) error {
+func (c *Request) DoNoRes(ctx context.Context, body interface{}, hds ...[]byte) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	c.ctx, c.cncl = context.WithCancel(ctx)
+
 	var err error
 	var bdbts []byte
 	if body != nil {
@@ -192,18 +206,17 @@ func (c *Request) DoNoRes(body interface{}, hds ...[]byte) error {
 	}
 	return c.send(bdbts, hds...)
 }
-func (c *Request) Do(body interface{}, hds ...[]byte) error {
-	err := c.DoNoRes(body, hds...)
+func (c *Request) Do(ctx context.Context, body interface{}, hds ...[]byte) error {
+	err := c.DoNoRes(ctx, body, hds...)
 	if err != nil {
 		return err
 	}
 	return c.Res()
 }
-func (c *Request) Conn() net.Conn {
-	return c.conn
-}
-func (c *Request) GetConn() net.Conn {
-	c.clve = false
+func (c *Request) Conn(ownership ...bool) net.Conn {
+	if len(ownership) > 0 {
+		c.clve = !ownership[0]
+	}
 	return c.conn
 }
 func (c *Request) Close() error {
@@ -212,6 +225,7 @@ func (c *Request) Close() error {
 	}
 	if c.cncl != nil {
 		c.cncl()
+		c.cncl = nil
 	}
 	return nil
 }

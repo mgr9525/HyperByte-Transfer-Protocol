@@ -45,7 +45,7 @@ func DoJson(req *Request, in, out interface{}, hd ...map[string]interface{}) err
 			req.ReqHeader().Set(k, v)
 		}
 	}
-	err := req.Do(in)
+	err := req.Do(nil, in)
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func DoString(req *Request, in interface{}, hd ...Mp) (int, []byte, error) {
 			req.ReqHeader().Set(k, v)
 		}
 	}
-	err := req.Do(in)
+	err := req.Do(nil, in)
 	if err != nil {
 		return 0, nil, err
 	}

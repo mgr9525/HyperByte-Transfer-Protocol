@@ -5,21 +5,9 @@ import (
 	"time"
 )
 
-var (
-	doTokens   = ""
-	doTokenFun DoGenTokenHandle
-)
-
 type DoGenTokenHandle func(request *Request) string
 
-func InitDoToken(tks string, tkfs ...DoGenTokenHandle) {
-	doTokens = tks
-	if len(tkfs) > 0 {
-		doTokenFun = tkfs[0]
-	}
-}
-
-func NewDoReq(host string, code int, pth string, ipr ...string) (*Request, error) {
+func NewDoReq(host string, code int, pth string, tkfn DoGenTokenHandle, ipr ...string) (*Request, error) {
 	req, err := NewRequest(host, code)
 	if err != nil {
 		return nil, err
@@ -30,14 +18,13 @@ func NewDoReq(host string, code int, pth string, ipr ...string) (*Request, error
 	}
 	hd.Path = pth
 	hd.Times = time.Now().Format(time.RFC3339Nano)
-	hd.Token = doTokens
-	if doTokens == "" && doTokenFun != nil {
-		hd.Token = doTokenFun(req)
+	if tkfn != nil {
+		hd.Token = tkfn(req)
 	}
 	return req, err
 }
-func DoJson(host string, code int, pth string, in, out interface{}, hd ...map[string]interface{}) error {
-	req, err := NewDoReq(host, code, pth)
+func DoJson(host string, code int, pth string, tkfn DoGenTokenHandle, in, out interface{}, hd ...map[string]interface{}) error {
+	req, err := NewDoReq(host, code, pth, tkfn)
 	if err != nil {
 		return err
 	}
@@ -56,8 +43,8 @@ func DoJson(host string, code int, pth string, in, out interface{}, hd ...map[st
 	}
 	return req.ResBodyJson(out)
 }
-func DoString(host string, code int, pth string, in interface{}, hd ...Mp) (int, []byte, error) {
-	req, err := NewDoReq(host, code, pth)
+func DoString(host string, code int, pth string, tkfn DoGenTokenHandle, in interface{}, hd ...Mp) (int, []byte, error) {
+	req, err := NewDoReq(host, code, pth, tkfn)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -74,7 +61,7 @@ func DoString(host string, code int, pth string, in interface{}, hd ...Mp) (int,
 	return req.ResCode(), req.ResBodyBytes(), nil
 }
 
-func NewDoRPCReq(host string, code int, method string, ipr ...string) (*Request, error) {
+func NewDoRPCReq(host string, code int, method string, tkfn DoGenTokenHandle, ipr ...string) (*Request, error) {
 	req, err := NewRPCReq(host, code, method)
 	if err != nil {
 		return nil, err
@@ -84,14 +71,13 @@ func NewDoRPCReq(host string, code int, method string, ipr ...string) (*Request,
 		hd.RelIp = ipr[1]
 	}
 	hd.Times = time.Now().Format(time.RFC3339Nano)
-	hd.Token = doTokens
-	if doTokens == "" && doTokenFun != nil {
-		hd.Token = doTokenFun(req)
+	if tkfn != nil {
+		hd.Token = tkfn(req)
 	}
 	return req, err
 }
-func DoRPCJson(host string, code int, method string, in, out interface{}, hd ...map[string]interface{}) error {
-	req, err := NewDoRPCReq(host, code, method)
+func DoRPCJson(host string, code int, method string, tkfn DoGenTokenHandle, in, out interface{}, hd ...map[string]interface{}) error {
+	req, err := NewDoRPCReq(host, code, method, tkfn)
 	if err != nil {
 		return err
 	}
@@ -110,8 +96,8 @@ func DoRPCJson(host string, code int, method string, in, out interface{}, hd ...
 	}
 	return req.ResBodyJson(out)
 }
-func DoRPCString(host string, code int, method string, in interface{}, hd ...Mp) (int, []byte, error) {
-	req, err := NewDoRPCReq(host, code, method)
+func DoRPCString(host string, code int, method string, tkfn DoGenTokenHandle, in interface{}, hd ...Mp) (int, []byte, error) {
+	req, err := NewDoRPCReq(host, code, method, tkfn)
 	if err != nil {
 		return 0, nil, err
 	}

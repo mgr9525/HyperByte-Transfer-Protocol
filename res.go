@@ -17,11 +17,10 @@ type Context struct {
 	hdrs *Header
 }
 
-func (c *Context) Conn() net.Conn {
-	return c.conn
-}
-func (c *Context) GetConn() net.Conn {
-	c.clve = false
+func (c *Context) Conn(ownership ...bool) net.Conn {
+	if len(ownership) > 0 {
+		c.clve = !ownership[0]
+	}
 	return c.conn
 }
 func (c *Context) ReqHeader() (*Header, error) {

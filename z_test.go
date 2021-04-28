@@ -33,7 +33,7 @@ func TestRequest(t *testing.T) {
 	}
 	defer req.Close()
 	//req.ReqHeader().Set("host", "test.host.com")
-	err = req.Do([]byte("hello world"))
+	err = req.Do(nil, []byte("hello world"))
 	if err != nil {
 		println("NewRequest err:", err.Error())
 		return
@@ -92,7 +92,7 @@ func TestRPCReq(t *testing.T) {
 	}
 	defer req.Close()
 	req.ReqHeader().Token = "123456"
-	err = req.Do([]byte("hello world"))
+	err = req.Do(nil, []byte("hello world"))
 	if err != nil {
 		println("NewRequest err:", err.Error())
 		return
@@ -112,7 +112,7 @@ func TestRPCReq(t *testing.T) {
 	}
 	defer req.Close()
 	req.ReqHeader().Token = "123456"
-	err = req.Do([]byte("hello world"))
+	err = req.Do(nil, []byte("hello world"))
 	if err != nil {
 		println("NewRequest err:", err.Error())
 		return
@@ -134,7 +134,7 @@ func testRPCs(in int) {
 	}
 	defer req.Close()
 	req.ReqHeader().Token = "123456"
-	err = req.Do(fmt.Sprintf("%d", in))
+	err = req.Do(nil, fmt.Sprintf("%d", in))
 	if err != nil {
 		println("NewRequest err:", err.Error())
 		return

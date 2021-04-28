@@ -1,32 +1,26 @@
 package hbtp
 
 import (
-	"errors"
 	"fmt"
 	"time"
 )
 
 var (
-	doHost     = ""
 	doTokens   = ""
 	doTokenFun DoGenTokenHandle
 )
 
 type DoGenTokenHandle func(request *Request) string
 
-func InitDo(host, tks string, tkfs ...DoGenTokenHandle) {
-	doHost = host
+func InitDoToken(tks string, tkfs ...DoGenTokenHandle) {
 	doTokens = tks
 	if len(tkfs) > 0 {
 		doTokenFun = tkfs[0]
 	}
 }
 
-func NewDoReq(code int, pth string, ipr ...string) (*Request, error) {
-	if doHost == "" {
-		return nil, errors.New("hbtp do is not init")
-	}
-	req, err := NewRequest(doHost, code)
+func NewDoReq(host string, code int, pth string, ipr ...string) (*Request, error) {
+	req, err := NewRequest(host, code)
 	if err != nil {
 		return nil, err
 	}
@@ -42,8 +36,8 @@ func NewDoReq(code int, pth string, ipr ...string) (*Request, error) {
 	}
 	return req, err
 }
-func DoJson(code int, pth string, in, out interface{}, hd ...map[string]interface{}) error {
-	req, err := NewDoReq(code, pth)
+func DoJson(host string, code int, pth string, in, out interface{}, hd ...map[string]interface{}) error {
+	req, err := NewDoReq(host, code, pth)
 	if err != nil {
 		return err
 	}
@@ -62,8 +56,8 @@ func DoJson(code int, pth string, in, out interface{}, hd ...map[string]interfac
 	}
 	return req.ResBodyJson(out)
 }
-func DoString(code int, pth string, in interface{}, hd ...Mp) (int, []byte, error) {
-	req, err := NewDoRPCReq(code, pth)
+func DoString(host string, code int, pth string, in interface{}, hd ...Mp) (int, []byte, error) {
+	req, err := NewDoReq(host, code, pth)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -80,11 +74,8 @@ func DoString(code int, pth string, in interface{}, hd ...Mp) (int, []byte, erro
 	return req.ResCode(), req.ResBodyBytes(), nil
 }
 
-func NewDoRPCReq(code int, method string, ipr ...string) (*Request, error) {
-	if doHost == "" {
-		return nil, errors.New("hbtp do is not init")
-	}
-	req, err := NewRPCReq(doHost, code, method)
+func NewDoRPCReq(host string, code int, method string, ipr ...string) (*Request, error) {
+	req, err := NewRPCReq(host, code, method)
 	if err != nil {
 		return nil, err
 	}
@@ -99,8 +90,8 @@ func NewDoRPCReq(code int, method string, ipr ...string) (*Request, error) {
 	}
 	return req, err
 }
-func DoRPCJson(code int, method string, in, out interface{}, hd ...map[string]interface{}) error {
-	req, err := NewDoRPCReq(code, method)
+func DoRPCJson(host string, code int, method string, in, out interface{}, hd ...map[string]interface{}) error {
+	req, err := NewDoRPCReq(host, code, method)
 	if err != nil {
 		return err
 	}
@@ -119,8 +110,8 @@ func DoRPCJson(code int, method string, in, out interface{}, hd ...map[string]in
 	}
 	return req.ResBodyJson(out)
 }
-func DoRPCString(code int, method string, in interface{}, hd ...Mp) (int, []byte, error) {
-	req, err := NewDoRPCReq(code, method)
+func DoRPCString(host string, code int, method string, in interface{}, hd ...Mp) (int, []byte, error) {
+	req, err := NewDoRPCReq(host, code, method)
 	if err != nil {
 		return 0, nil, err
 	}

@@ -13,8 +13,9 @@ import (
 type ConnFun func(res *Context)
 
 type Engine struct {
-	ctx context.Context
-	lsr *net.TCPListener
+	ctx  context.Context
+	cncl context.CancelFunc
+	lsr  net.Listener
 
 	fnlk sync.Mutex
 	fns  map[int]ConnFun
@@ -26,8 +27,7 @@ type Engine struct {
 }
 
 func NewEngine(ctx context.Context) *Engine {
-	et := &Engine{
-		ctx: ctx,
+	c := &Engine{
 		fns: make(map[int]ConnFun),
 
 		tmsHead: conf.tmsHead,
@@ -35,11 +35,21 @@ func NewEngine(ctx context.Context) *Engine {
 		maxHead: conf.maxHead,
 		maxBody: conf.maxBody,
 	}
-	return et
+	c.ctx, c.cncl = context.WithCancel(ctx)
+	return c
+}
+func (c *Engine) Stop() {
+	if c.lsr != nil {
+		c.lsr.Close()
+	}
+	if c.cncl != nil {
+		c.cncl()
+		c.cncl = nil
+	}
 }
 func (c *Engine) Run(host string) error {
-	addr, _ := net.ResolveTCPAddr("tcp", host)
-	lsr, err := net.ListenTCP("tcp", addr)
+	//addr, _ := net.ResolveTCPAddr("tcp", host)
+	lsr, err := net.Listen("tcp", host)
 	if err != nil {
 		return err
 	}
@@ -63,14 +73,14 @@ func (c *Engine) runAcp() {
 		time.Sleep(time.Millisecond * 100)
 		return
 	}
-	conn, err := c.lsr.AcceptTCP()
+	conn, err := c.lsr.Accept()
 	if err != nil {
 		println(fmt.Sprintf("runAcp AcceptTCP err:%+v", err))
 		return
 	}
 	go c.handleConn(conn)
 }
-func (c *Engine) handleConn(conn *net.TCPConn) {
+func (c *Engine) handleConn(conn net.Conn) {
 	defer func() {
 		if err := recover(); err != nil {
 			println(fmt.Sprintf("Engine runAcp recover:%+v", err))

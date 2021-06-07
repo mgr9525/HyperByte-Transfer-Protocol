@@ -12,6 +12,10 @@ func TestServer(t *testing.T) {
 	eg := NewEngine(context.Background())
 	eg.RegFun(1, ParamFunHandle(helloWorldFun))
 	eg.RegFun(2, RPCFunHandle(&testFuns{}))
+	go func() {
+		time.Sleep(time.Second * 10)
+		eg.Stop()
+	}()
 	if err := eg.Run(":7030"); err != nil {
 		println("engine run err:", err.Error())
 	}

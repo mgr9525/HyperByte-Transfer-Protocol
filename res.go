@@ -15,6 +15,8 @@ type Context struct {
 
 	hdr  *Header
 	hdrs *Header
+
+	data Mp
 }
 
 func (c *Context) Conn(ownership ...bool) net.Conn {
@@ -113,4 +115,17 @@ func (c *Context) ResJson(code int, body interface{}, hds ...[]byte) error {
 		}
 	}
 	return c.ResBytes(code, bdbts, hds...)
+}
+func (c *Context) SetData(k string, data interface{}) {
+	if c.data == nil {
+		c.data = Mp{}
+	}
+	c.data[k] = data
+}
+func (c *Context) GetData(k string) (interface{}, bool) {
+	if c.data == nil {
+		c.data = Mp{}
+	}
+	v, ok := c.data[k]
+	return v, ok
 }

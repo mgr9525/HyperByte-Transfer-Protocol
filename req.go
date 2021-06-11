@@ -115,7 +115,7 @@ func (c *Request) write(bts []byte) (int, error) {
 	}
 	return n, nil
 }
-func (c *Request) send(bds []byte, hds ...[]byte) error {
+func (c *Request) send(bds []byte, hds ...interface{}) error {
 	c.started = time.Now()
 	conn, err := net.DialTimeout("tcp", c.addr, c.conf.TmsInfo)
 	if err != nil {
@@ -129,7 +129,17 @@ func (c *Request) send(bds []byte, hds ...[]byte) error {
 
 	var hd []byte
 	if len(hds) > 0 {
-		hd = hds[0]
+		switch hds[0].(type) {
+		case []byte:
+			hd = hds[0].([]byte)
+		case string:
+			hd = []byte(hds[0].(string))
+		default:
+			hd, err = json.Marshal(hds[0])
+			if err != nil {
+				return err
+			}
+		}
 	} else if c.hdrq != nil {
 		hd = c.hdrq.ToBytes()
 	}
@@ -208,7 +218,7 @@ func (c *Request) Res() error {
 	}
 	return nil
 }
-func (c *Request) DoNoRes(ctx context.Context, body interface{}, hds ...[]byte) error {
+func (c *Request) DoNoRes(ctx context.Context, body interface{}, hds ...interface{}) error {
 	c.ctx = ctx
 	var err error
 	var bdbts []byte
@@ -227,7 +237,7 @@ func (c *Request) DoNoRes(ctx context.Context, body interface{}, hds ...[]byte) 
 	}
 	return c.send(bdbts, hds...)
 }
-func (c *Request) Do(ctx context.Context, body interface{}, hds ...[]byte) error {
+func (c *Request) Do(ctx context.Context, body interface{}, hds ...interface{}) error {
 	err := c.DoNoRes(ctx, body, hds...)
 	if err != nil {
 		return err

@@ -4,191 +4,212 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
+	"net/url"
 	"time"
 )
 
 type Request struct {
-	clve bool
-	conn net.Conn
-	fs   int
-	code int
-	hds  []byte
-	bds  []byte
+	conf    Config
+	clve    bool
+	addr    string
+	timeout time.Duration
+	conn    net.Conn
+	control int32
+	cmd     string
+	args    url.Values
+
+	code  int32
+	hdsrs []byte
+	bdsrs []byte
 
 	ctx  context.Context
 	cncl context.CancelFunc
 
-	hdr  *Header
-	hdrs *Header
+	hdrq *Map
+	hdrs *Map
+
+	started time.Time
 }
 
-func (c *Request) ReqHeader() *Header {
-	if c.hdr != nil {
-		return c.hdr
+func (c *Request) ReqHeader() *Map {
+	if c.hdrq == nil {
+		c.hdrq = NewMap()
 	}
-	c.hdr = &Header{}
-	return c.hdr
+	return c.hdrq
 }
-func (c *Request) ResHeader() (*Header, error) {
-	if c.hds == nil {
+func (c *Request) ResHeader() (*Map, error) {
+	if c.hdsrs == nil {
 		return nil, errors.New("is do?")
 	}
-	if c.hdrs != nil {
-		return c.hdrs, nil
+	if c.hdrs == nil {
+		c.hdrs = NewMaps(c.hdsrs)
 	}
-	hdr, err := ParseHeader(c.hds)
-	if err != nil {
-		return nil, err
-	}
-	c.hdrs = hdr
-	return hdr, nil
+	return c.hdrs, nil
 }
-func (c *Request) ResCode() int {
+func (c *Request) ResCode() int32 {
 	return c.code
 }
 func (c *Request) ResHeadBytes() []byte {
-	return c.hds
+	return c.hdsrs
 }
 func (c *Request) ResBodyBytes() []byte {
-	return c.bds
+	return c.bdsrs
 }
 func (c *Request) ResBodyJson(bd interface{}) error {
-	if c.bds == nil {
+	if c.bdsrs == nil {
 		return errors.New("is do?")
 	}
-	return json.Unmarshal(c.bds, bd)
+	return json.Unmarshal(c.bdsrs, bd)
 }
 
-func NewRequest(addr string, fs int, timeout ...time.Duration) (*Request, error) {
-	tmo := time.Second * 5
+func NewRequest(addr string, control int32, timeout ...time.Duration) *Request {
+	tmo := time.Second * 30
 	if len(timeout) > 0 {
 		tmo = timeout[0]
 	}
-	conn, err := net.DialTimeout("tcp", addr, tmo)
-	if err != nil {
-		return nil, err
-	}
 	cli := &Request{
-		clve: true,
-		conn: conn,
-		fs:   fs,
+		conf:    MakeConfig(),
+		clve:    true,
+		addr:    addr,
+		timeout: tmo,
+		control: control,
 	}
 	//cli.handleConn()
-	return cli, nil
+	return cli
 }
-func NewRPCReq(addr string, fs int, path string, timeout ...time.Duration) (*Request, error) {
-	req, err := NewRequest(addr, fs, timeout...)
-	if err != nil {
-		return nil, err
-	}
-	req.ReqHeader().Path = path
-	return req, nil
+func (c *Request) Config(conf Config) *Request {
+	c.conf = conf
+	return c
 }
-func (c *Request) SetContext(ctx context.Context) {
+func (c *Request) SetContext(ctx context.Context) *Request {
 	if ctx == nil {
-		return
+		return c
 	}
 	c.ctx = ctx
 	c.cncl = nil
+	return c
+}
+func (c *Request) Timeout(tmo time.Duration) *Request {
+	c.timeout = tmo
+	return c
+}
+func (c *Request) Command(cmd string) *Request {
+	c.cmd = cmd
+	return c
+}
+func (c *Request) Args(args url.Values) *Request {
+	c.args = args
+	return c
+}
+func (c *Request) write(bts []byte) (int, error) {
+	if c.ctx == nil || c.conn == nil {
+		return 0, errors.New("do is call?")
+	}
+	n, err := c.conn.Write(bts)
+	if err != nil {
+		return 0, err
+	}
+	if EndContext(c.ctx) {
+		return 0, errors.New("ctx is end")
+	}
+	return n, nil
 }
 func (c *Request) send(bds []byte, hds ...[]byte) error {
-	var hd []byte
-	if len(hds) > 0 {
-		hd = hds[0]
-	} else if c.hdr != nil {
-		hd = c.hdr.Bytes()
-	}
-
-	_, err := c.conn.Write([]byte{0x8e, 0x8f})
+	c.started = time.Now()
+	conn, err := net.DialTimeout("tcp", c.addr, c.conf.TmsInfo)
 	if err != nil {
 		return err
 	}
-	ctrls := BigIntToByte(int64(c.fs), 4)
-	hdln := BigIntToByte(int64(len(hd)), 4)
-	contln := BigIntToByte(int64(len(bds)), 4)
-	if _, err := c.conn.Write(ctrls); err != nil {
+	if c.ctx == nil {
+		c.ctx = context.Background()
+	}
+	c.ctx, c.cncl = context.WithTimeout(c.ctx, c.timeout)
+	c.conn = conn
+
+	var hd []byte
+	if len(hds) > 0 {
+		hd = hds[0]
+	} else if c.hdrq != nil {
+		hd = c.hdrq.ToBytes()
+	}
+
+	var args string
+	if c.args != nil {
+		args = c.args.Encode()
+	}
+	info := &msgInfo{
+		Control: c.control,
+		LenCmd:  uint16(len(c.cmd)),
+		LenArg:  uint16(len(args)),
+		LenHead: uint32(len(hd)),
+		LenBody: uint32(len(bds)),
+	}
+	bts, err := Struct2Byte(info)
+	if err != nil {
 		return err
 	}
-	if _, err := c.conn.Write(hdln); err != nil {
+	_, err = c.write(bts)
+	if err != nil {
 		return err
 	}
-	if EndContext(c.ctx) {
-		return errors.New("context dead")
-	}
-	if hd != nil {
-		if _, err := c.conn.Write(hd); err != nil {
+	if info.LenCmd > 0 {
+		_, err = c.write([]byte(c.cmd))
+		if err != nil {
 			return err
 		}
 	}
-	if EndContext(c.ctx) {
-		return errors.New("context dead")
+	if info.LenArg > 0 {
+		_, err = c.write([]byte(args))
+		if err != nil {
+			return err
+		}
 	}
-	if _, err := c.conn.Write(contln); err != nil {
-		return err
+	if info.LenHead > 0 {
+		_, err = c.write(hd)
+		if err != nil {
+			return err
+		}
 	}
-	if bds != nil {
-		if _, err := c.conn.Write(bds); err != nil {
+	if info.LenBody > 0 {
+		_, err = c.write(bds)
+		if err != nil {
 			return err
 		}
 	}
 	return nil
 }
 func (c *Request) Res() error {
-	if c.ctx == nil {
+	if c.ctx == nil || c.conn == nil {
 		return errors.New("need do some thing")
 	}
-	bts, err := TcpRead(c.ctx, c.conn, 4)
+	info := &resInfo{}
+	infoln, _ := Size4Struct(info)
+	bts, err := TcpRead(c.ctx, c.conn, uint(infoln))
 	if err != nil {
-		println(fmt.Sprintf("Request Res err:%+v", err))
 		return err
 	}
-	c.code = int(BigByteToInt(bts))
-	bts, err = TcpRead(c.ctx, c.conn, 4)
+	err = Byte2Struct(bts, info)
 	if err != nil {
-		println(fmt.Sprintf("Request Res err:%+v", err))
 		return err
 	}
-	hln := uint(BigByteToInt(bts))
-	if hln > conf.maxHead {
-		println(fmt.Sprintf("Request Res head size out max:%d/%d", hln, conf.maxHead))
-		return errors.New("head len out max")
-	}
-	var hdbts []byte
-	if hln > 0 {
-		hdbts, err = TcpRead(c.ctx, c.conn, hln)
+	c.code = info.Code
+	if info.LenHead > 0 {
+		c.hdsrs, err = TcpRead(c.ctx, c.conn, uint(info.LenHead))
 		if err != nil {
 			return err
 		}
 	}
-	bts, err = TcpRead(c.ctx, c.conn, 4)
-	if err != nil {
-		println(fmt.Sprintf("Request Res err:%+v", err))
-		return err
-	}
-	bln := uint(BigByteToInt(bts))
-	if bln > conf.maxBody {
-		println(fmt.Sprintf("Request Res body size out max:%d/%d", bln, conf.maxBody))
-		return errors.New("body len out max")
-	}
-	var bdbts []byte
-	if bln > 0 {
-		bdbts, err = TcpRead(c.ctx, c.conn, bln)
+	if info.LenBody > 0 {
+		c.bdsrs, err = TcpRead(c.ctx, c.conn, uint(info.LenBody))
 		if err != nil {
 			return err
 		}
 	}
-	c.hds = hdbts
-	c.bds = bdbts
 	return nil
 }
 func (c *Request) DoNoRes(ctx context.Context, body interface{}, hds ...[]byte) error {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	c.ctx, c.cncl = context.WithCancel(ctx)
-
+	c.ctx = ctx
 	var err error
 	var bdbts []byte
 	if body != nil {
@@ -225,7 +246,7 @@ func (c *Request) Conn(ownership ...bool) net.Conn {
 	return c.conn
 }
 func (c *Request) Close() error {
-	if c.clve {
+	if c.clve && c.conn != nil {
 		return c.conn.Close()
 	}
 	if c.cncl != nil {

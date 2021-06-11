@@ -4,19 +4,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"reflect"
 )
 
 type AuthFun = func(c *Context) bool
 
-var hdrtyp = reflect.TypeOf(Header{})
+var hdrtyp = reflect.TypeOf(url.Values{})
 
 type IRPCRoute interface {
 	AuthFun() AuthFun
 }
 
 func appendParams(self *reflect.Value, c *Context, fnt reflect.Type) ([]reflect.Value, error) {
-	hdr, _ := c.ReqHeader()
 	nmIn := fnt.NumIn()
 	nmOut := fnt.NumOut()
 	if nmOut > 0 {
@@ -35,10 +35,10 @@ func appendParams(self *reflect.Value, c *Context, fnt reflect.Type) ([]reflect.
 		if argt.Kind() == reflect.Ptr {
 			argtr = argt.Elem()
 		}
-		if argtr == hdrtyp {
-			inls[i] = reflect.ValueOf(hdr)
+		/*if argtr == hdrtyp {
+			inls[i] = reflect.ValueOf(c.args)
 			continue
-		}
+		}*/
 		if argtr.Kind() == reflect.Struct || argtr.Kind() == reflect.Map {
 			argv := reflect.New(argtr)
 			if err := json.Unmarshal(c.BodyBytes(), argv.Interface()); err != nil {
@@ -59,7 +59,7 @@ func appendParams(self *reflect.Value, c *Context, fnt reflect.Type) ([]reflect.
 	}
 	return inls, nil
 }
-func ParamFunHandle(fn interface{}, authfn ...AuthFun) ConnFun {
+func paramFunHandle(fn interface{}, authfn ...AuthFun) ConnFun {
 	fnv := reflect.ValueOf(fn)
 	if fnv.Kind() != reflect.Func {
 		return nil
@@ -80,7 +80,7 @@ func ParamFunHandle(fn interface{}, authfn ...AuthFun) ConnFun {
 	}
 }
 
-func RPCFunHandle(t IRPCRoute) ConnFun {
+func grpcFunHandle(t IRPCRoute) ConnFun {
 	tv := reflect.ValueOf(t)
 	ty := tv.Type()
 	if ty.Kind() != reflect.Ptr {
@@ -95,18 +95,13 @@ func RPCFunHandle(t IRPCRoute) ConnFun {
 	//mln2 := tyr.NumMethod()
 	mfn := t.AuthFun()
 	return func(c *Context) {
-		hdr, err := c.ReqHeader()
-		if err != nil {
-			c.ResString(ResStatusErr, fmt.Sprintf("ReqHeader err:%+v", err))
-			return
-		}
 		if mfn != nil && !mfn(c) {
 			return
 		}
 
 		for i := 0; i < mln1; i++ {
 			mty := ty.Method(i)
-			if hdr.Path == mty.Name {
+			if c.Command() == mty.Name {
 				inls, err := appendParams(&tv, c, mty.Type)
 				if err != nil {
 					c.ResString(ResStatusErr, fmt.Sprintf("appendParams err:%+v", err))
@@ -117,7 +112,7 @@ func RPCFunHandle(t IRPCRoute) ConnFun {
 			}
 		}
 
-		c.ResString(ResStatusNotFound, "not found method:"+hdr.Path)
+		c.ResString(ResStatusNotFound, "not found method:"+c.Command())
 		return
 	}
 }

@@ -3,9 +3,12 @@ package hbtp
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"net"
 	"os"
+	"reflect"
+	"unsafe"
 )
 
 func PathExists(path string) bool {
@@ -25,6 +28,19 @@ func EndContext(ctx context.Context) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+var Debug = false
+
+func Debugf(s string, args ...interface{}) {
+	if !Debug {
+		return
+	}
+	if len(args) > 0 {
+		println(fmt.Sprintf(s, args...))
+	} else {
+		println(s)
 	}
 }
 
@@ -123,4 +139,87 @@ func LitByteToFloat64(data []byte) float64 {
 func LitFloatToByte64(data float64) []byte {
 	v := math.Float64bits(data)
 	return LitIntToByte(int64(v), 8)
+}
+
+type SliceMock struct {
+	addr unsafe.Pointer
+	len  uint
+	cap  uint
+}
+
+func Size4Struct(pt interface{}) (uint32, error) {
+	if pt == nil {
+		return 0, errors.New("param is nil")
+	}
+	ptv := reflect.ValueOf(pt)
+	pte := ptv
+	if ptv.Kind() == reflect.Ptr {
+		if ptv.IsZero() {
+			return 0, errors.New("pt is not ptr")
+		}
+		pte = ptv.Elem()
+	}
+	if pte.Kind() != reflect.Struct {
+		return 0, fmt.Errorf("*pt is not struct:%s", pte.Kind())
+	}
+	ln := unsafe.Sizeof(pte.Interface())
+	return uint32(ln), nil
+}
+func Struct2Byte(pt interface{}) ([]byte, error) {
+	if pt == nil {
+		return nil, errors.New("param is nil")
+	}
+	ptv := reflect.ValueOf(pt)
+	if ptv.Kind() != reflect.Ptr && !ptv.IsZero() {
+		return nil, errors.New("pt is not ptr")
+	}
+	pte := ptv.Elem()
+	if pte.Kind() != reflect.Struct {
+		return nil, fmt.Errorf("*pt is not struct:%s", pte.Kind())
+	}
+	ln := unsafe.Sizeof(pte.Interface())
+	return Struct2Bytes(unsafe.Pointer(ptv.Pointer()), ln)
+}
+func Byte2Struct(data []byte, pt interface{}) error {
+	if pt == nil {
+		return errors.New("param is nil")
+	}
+	ptv := reflect.ValueOf(pt)
+	if ptv.Kind() != reflect.Ptr && !ptv.IsZero() {
+		return errors.New("pt is not ptr")
+	}
+	pte := ptv.Elem()
+	if pte.Kind() != reflect.Struct {
+		return fmt.Errorf("*pt is not struct:%s", pte.Kind())
+	}
+	//ln:=unsafe.Sizeof(pte.Interface())
+	return Bytes2Struct(data, unsafe.Pointer(ptv.Pointer()))
+}
+func Struct2Bytes(pt unsafe.Pointer, ln uintptr) ([]byte, error) {
+	if pt == nil {
+		return nil, errors.New("param is nil")
+	}
+	mock := &SliceMock{
+		addr: pt,
+		cap:  uint(ln),
+		len:  uint(ln),
+	}
+	bts := *(*[]byte)(unsafe.Pointer(mock))
+	rtbts := make([]byte, mock.len)
+	copy(rtbts, bts)
+	return rtbts, nil
+}
+func Bytes2Struct(data []byte, pt unsafe.Pointer) error {
+	ln := len(data)
+	if pt == nil || ln <= 0 {
+		return errors.New("param is nil")
+	}
+	mock := &SliceMock{
+		addr: pt,
+		cap:  uint(ln),
+		len:  uint(ln),
+	}
+	bts := *(*[]byte)(unsafe.Pointer(mock))
+	copy(bts, data)
+	return nil
 }

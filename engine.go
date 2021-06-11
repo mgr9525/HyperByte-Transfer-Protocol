@@ -2,8 +2,8 @@ package hbtp
 
 import (
 	"context"
-	"fmt"
 	"net"
+	"net/url"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -18,25 +18,21 @@ type Engine struct {
 	lsr  net.Listener
 
 	fnlk sync.Mutex
-	fns  map[int]ConnFun
+	fns  map[int32]ConnFun
 
-	tmsHead time.Duration
-	tmsBody time.Duration
-	maxHead uint
-	maxBody uint
+	conf Config
 }
 
 func NewEngine(ctx context.Context) *Engine {
 	c := &Engine{
-		fns: make(map[int]ConnFun),
-
-		tmsHead: conf.tmsHead,
-		tmsBody: conf.tmsBody,
-		maxHead: conf.maxHead,
-		maxBody: conf.maxBody,
+		fns:  make(map[int32]ConnFun),
+		conf: MakeConfig(),
 	}
 	c.ctx, c.cncl = context.WithCancel(ctx)
 	return c
+}
+func (c *Engine) Config(conf Config) {
+	c.conf = conf
 }
 func (c *Engine) Stop() {
 	if c.lsr != nil {
@@ -65,8 +61,8 @@ func (c *Engine) Run(host string) error {
 func (c *Engine) runAcp() {
 	defer func() {
 		if err := recover(); err != nil {
-			println(fmt.Sprintf("Engine runAcp recover:%+v", err))
-			println(fmt.Sprintf("%s", string(debug.Stack())))
+			Debugf("Engine runAcp recover:%+v", err)
+			Debugf("%s", string(debug.Stack()))
 		}
 	}()
 	if c.lsr == nil {
@@ -75,7 +71,7 @@ func (c *Engine) runAcp() {
 	}
 	conn, err := c.lsr.Accept()
 	if err != nil {
-		println(fmt.Sprintf("runAcp AcceptTCP err:%+v", err))
+		Debugf("runAcp AcceptTCP err:%+v", err)
 		return
 	}
 	go c.handleConn(conn)
@@ -83,8 +79,8 @@ func (c *Engine) runAcp() {
 func (c *Engine) handleConn(conn net.Conn) {
 	defer func() {
 		if err := recover(); err != nil {
-			println(fmt.Sprintf("Engine runAcp recover:%+v", err))
-			println(fmt.Sprintf("%s", string(debug.Stack())))
+			Debugf("Engine runAcp recover:%+v", err)
+			Debugf("%s", string(debug.Stack()))
 		}
 	}()
 	needclose := true
@@ -94,82 +90,74 @@ func (c *Engine) handleConn(conn net.Conn) {
 		}
 	}()
 
-	ctx, _ := context.WithTimeout(c.ctx, time.Second*10)
-	bts, err := TcpRead(ctx, conn, 2)
+	info := &msgInfo{}
+	infoln, _ := Size4Struct(info)
+	ctx, _ := context.WithTimeout(c.ctx, c.conf.TmsInfo)
+	bts, err := TcpRead(ctx, conn, uint(infoln))
 	if err != nil {
-		println(fmt.Sprintf("Engine handleConn handleRead err:%+v", err))
+		Debugf("Engine handleConn handleRead err:%+v", err)
 		return
 	}
-	if bts[0] != 0x8e || bts[1] != 0x8f {
-		println(fmt.Sprintf("Engine handleConn handleRead err:%+v", err))
-		return
-	}
-	bts, err = TcpRead(ctx, conn, 4)
+	err = Byte2Struct(bts, info)
 	if err != nil {
-		println(fmt.Sprintf("Engine handleConn handleRead err:%+v", err))
 		return
 	}
-	mcode := int(BigByteToInt(bts))
-	bts, err = TcpRead(ctx, conn, 4)
-	if err != nil {
-		println(fmt.Sprintf("Engine handleConn handleRead err:%+v", err))
-		return
+	rtctx := &Context{
+		clve:    true,
+		conn:    conn,
+		control: info.Control,
 	}
-	hdln := uint(BigByteToInt(bts))
-	if hdln > c.maxHead {
-		println(fmt.Sprintf("Engine handleConn handleRead head size out max:%d/%d", hdln, c.maxHead))
-		return
-	}
-	ctx, _ = context.WithTimeout(c.ctx, c.tmsHead)
-	var hdbts []byte
-	if hdln > 0 {
-		hdbts, err = TcpRead(ctx, conn, hdln)
+	ctx, _ = context.WithTimeout(c.ctx, c.conf.TmsHead)
+	if info.LenCmd > 0 {
+		bts, err = TcpRead(ctx, conn, uint(info.LenCmd))
 		if err != nil {
-			println(fmt.Sprintf("Engine handleConn handleRead err:%+v", err))
+			Debugf("Engine handleConn handleRead err:%+v", err)
+			return
+		}
+		rtctx.cmd = string(bts)
+	}
+	if info.LenArg > 0 {
+		bts, err = TcpRead(ctx, conn, uint(info.LenArg))
+		if err != nil {
+			Debugf("Engine handleConn handleRead err:%+v", err)
+			return
+		}
+		args, err := url.ParseQuery(string(bts))
+		if err == nil {
+			rtctx.args = args
+		}
+	}
+	if info.LenHead > 0 {
+		rtctx.hds, err = TcpRead(ctx, conn, uint(info.LenHead))
+		if err != nil {
+			Debugf("Engine handleConn handleRead err:%+v", err)
 			return
 		}
 	}
 
-	bts, err = TcpRead(ctx, conn, 4)
-	if err != nil {
-		println(fmt.Sprintf("Engine handleConn handleRead err:%+v", err))
-		return
-	}
-	bdln := uint(BigByteToInt(bts))
-	if bdln > c.maxBody {
-		println(fmt.Sprintf("Engine handleConn handleRead body size out max:%d/%d", bdln, c.maxBody))
-		return
-	}
-	ctx, _ = context.WithTimeout(c.ctx, c.tmsBody)
-	var bdbts []byte
-	if bdln > 0 {
-		bdbts, err = TcpRead(ctx, conn, bdln)
+	ctx, _ = context.WithTimeout(c.ctx, c.conf.TmsBody)
+	if info.LenBody > 0 {
+		rtctx.bds, err = TcpRead(ctx, conn, uint(info.LenBody))
 		if err != nil {
-			println(fmt.Sprintf("Engine handleConn handleRead err:%+v", err))
+			Debugf("Engine handleConn handleRead err:%+v", err)
 			return
 		}
 	}
 
-	needclose = c.recoverCallMapfn(mcode, &Context{
-		clve: true,
-		conn: conn,
-		code: mcode,
-		hds:  hdbts,
-		bds:  bdbts,
-	})
+	needclose = c.recoverCallMapfn(rtctx)
 }
-func (c *Engine) recoverCallMapfn(mcode int, res *Context) (rt bool) {
+func (c *Engine) recoverCallMapfn(res *Context) (rt bool) {
 	rt = false
 	defer func() {
 		if err := recover(); err != nil {
 			rt = false
-			println(fmt.Sprintf("Engine recoverCallMapfn recover:%+v", err))
-			println(fmt.Sprintf("%s", string(debug.Stack())))
+			Debugf("Engine recoverCallMapfn recover:%+v", err)
+			Debugf("%s", string(debug.Stack()))
 		}
 	}()
 
 	c.fnlk.Lock()
-	fn, ok := c.fns[mcode]
+	fn, ok := c.fns[res.control]
 	c.fnlk.Unlock()
 	if ok && fn != nil {
 		fn(res)
@@ -177,28 +165,20 @@ func (c *Engine) recoverCallMapfn(mcode int, res *Context) (rt bool) {
 	return res.clve
 }
 
-func (c *Engine) RegFun(mcode int, fn ConnFun) bool {
+func (c *Engine) RegFun(control int32, fn ConnFun) bool {
 	c.fnlk.Lock()
 	defer c.fnlk.Unlock()
-	_, ok := c.fns[mcode]
+	_, ok := c.fns[control]
 	if ok || fn == nil {
-		println(fmt.Sprintf("Engine RegFun err:code(%d) is exist", mcode))
+		Debugf("Engine RegFun err:control(%d) is exist", control)
 		return false
 	}
-	c.fns[mcode] = fn
+	c.fns[control] = fn
 	return true
 }
-
-func (c *Engine) SetMaxHeadLen(n uint) {
-	c.maxHead = n
+func (c *Engine) RegParamFun(control int32, fn interface{}) bool {
+	return c.RegFun(control, paramFunHandle(fn))
 }
-func (c *Engine) SetMaxBodyLen(n uint) {
-	c.maxBody = n
-}
-
-func (c *Engine) ReadHeadTimeout(n time.Duration) {
-	c.tmsHead = n
-}
-func (c *Engine) ReadBodyTimeout(n time.Duration) {
-	c.tmsBody = n
+func (c *Engine) RegGrpcFun(control int32, rpc IRPCRoute) bool {
+	return c.RegFun(control, grpcFunHandle(rpc))
 }

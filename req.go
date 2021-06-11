@@ -75,7 +75,20 @@ func NewRequest(addr string, control int32, timeout ...time.Duration) *Request {
 		timeout: tmo,
 		control: control,
 	}
-	//cli.handleConn()
+	return cli
+}
+func NewConnRequest(conn net.Conn, control int32, timeout ...time.Duration) *Request {
+	tmo := time.Second * 30
+	if len(timeout) > 0 {
+		tmo = timeout[0]
+	}
+	cli := &Request{
+		conf:    MakeConfig(),
+		clve:    true,
+		conn:    conn,
+		timeout: tmo,
+		control: control,
+	}
 	return cli
 }
 func (c *Request) Config(conf Config) *Request {
@@ -116,16 +129,18 @@ func (c *Request) write(bts []byte) (int, error) {
 	return n, nil
 }
 func (c *Request) send(bds []byte, hds ...interface{}) error {
+	var err error
 	c.started = time.Now()
-	conn, err := net.DialTimeout("tcp", c.addr, c.conf.TmsInfo)
-	if err != nil {
-		return err
+	if c.conn == nil {
+		c.conn, err = net.DialTimeout("tcp", c.addr, c.conf.TmsInfo)
+		if err != nil {
+			return err
+		}
 	}
 	if c.ctx == nil {
 		c.ctx = context.Background()
 	}
 	c.ctx, c.cncl = context.WithTimeout(c.ctx, c.timeout)
-	c.conn = conn
 
 	var hd []byte
 	if len(hds) > 0 {

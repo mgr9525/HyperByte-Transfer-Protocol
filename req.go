@@ -132,6 +132,9 @@ func (c *Request) send(bds []byte, hds ...interface{}) error {
 	var err error
 	c.started = time.Now()
 	if c.conn == nil {
+		if c.addr == "" {
+			return errors.New("addr is empty")
+		}
 		c.conn, err = net.DialTimeout("tcp", c.addr, c.conf.TmsInfo)
 		if err != nil {
 			return err

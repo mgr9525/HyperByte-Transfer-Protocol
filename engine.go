@@ -3,7 +3,6 @@ package hbtp
 import (
 	"context"
 	"net"
-	"net/url"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -17,8 +16,9 @@ type Engine struct {
 	cncl context.CancelFunc
 	lsr  net.Listener
 
-	fnlk sync.Mutex
-	fns  map[int32]ConnFun
+	fnlk  sync.Mutex
+	fns   map[int32]ConnFun
+	notfn ConnFun
 
 	conf Config
 }
@@ -33,6 +33,9 @@ func NewEngine(ctx context.Context) *Engine {
 }
 func (c *Engine) Config(conf Config) {
 	c.conf = conf
+}
+func (c *Engine) NotFoundFun(fn ConnFun) {
+	c.notfn = fn
 }
 func (c *Engine) Stop() {
 	if c.lsr != nil {
@@ -90,61 +93,13 @@ func (c *Engine) handleConn(conn net.Conn) {
 		}
 	}()
 
-	info := &msgInfo{}
-	infoln, _ := Size4Struct(info)
-	ctx, _ := context.WithTimeout(c.ctx, c.conf.TmsInfo)
-	bts, err := TcpRead(ctx, conn, uint(infoln))
+	res, err := ParseContext(c.ctx, conn, c.conf)
 	if err != nil {
-		Debugf("Engine handleConn handleRead err:%+v", err)
+		Debugf("Engine handleConn ParseContext err:%+v", err)
 		return
 	}
-	err = Byte2Struct(bts, info)
-	if err != nil {
-		return
-	}
-	rtctx := &Context{
-		clve:    true,
-		conn:    conn,
-		control: info.Control,
-	}
-	ctx, _ = context.WithTimeout(c.ctx, c.conf.TmsHead)
-	if info.LenCmd > 0 {
-		bts, err = TcpRead(ctx, conn, uint(info.LenCmd))
-		if err != nil {
-			Debugf("Engine handleConn handleRead err:%+v", err)
-			return
-		}
-		rtctx.cmd = string(bts)
-	}
-	if info.LenArg > 0 {
-		bts, err = TcpRead(ctx, conn, uint(info.LenArg))
-		if err != nil {
-			Debugf("Engine handleConn handleRead err:%+v", err)
-			return
-		}
-		args, err := url.ParseQuery(string(bts))
-		if err == nil {
-			rtctx.args = args
-		}
-	}
-	if info.LenHead > 0 {
-		rtctx.hds, err = TcpRead(ctx, conn, uint(info.LenHead))
-		if err != nil {
-			Debugf("Engine handleConn handleRead err:%+v", err)
-			return
-		}
-	}
 
-	ctx, _ = context.WithTimeout(c.ctx, c.conf.TmsBody)
-	if info.LenBody > 0 {
-		rtctx.bds, err = TcpRead(ctx, conn, uint(info.LenBody))
-		if err != nil {
-			Debugf("Engine handleConn handleRead err:%+v", err)
-			return
-		}
-	}
-
-	needclose = c.recoverCallMapfn(rtctx)
+	needclose = c.recoverCallMapfn(res)
 }
 func (c *Engine) recoverCallMapfn(res *Context) (rt bool) {
 	rt = false
@@ -157,12 +112,16 @@ func (c *Engine) recoverCallMapfn(res *Context) (rt bool) {
 	}()
 
 	c.fnlk.Lock()
-	fn, ok := c.fns[res.control]
+	fn, ok := c.fns[res.Control()]
 	c.fnlk.Unlock()
 	if ok && fn != nil {
 		fn(res)
+	} else if c.notfn != nil {
+		c.notfn(res)
+	} else {
+		res.ResString(ResStatusNotFound, "Not Found Control Function")
 	}
-	return res.clve
+	return res.IsOwn()
 }
 
 func (c *Engine) RegFun(control int32, fn ConnFun) bool {
@@ -177,8 +136,8 @@ func (c *Engine) RegFun(control int32, fn ConnFun) bool {
 	return true
 }
 func (c *Engine) RegParamFun(control int32, fn interface{}) bool {
-	return c.RegFun(control, paramFunHandle(fn))
+	return c.RegFun(control, ParamFunHandle(fn))
 }
 func (c *Engine) RegGrpcFun(control int32, rpc IRPCRoute) bool {
-	return c.RegFun(control, grpcFunHandle(rpc))
+	return c.RegFun(control, GrpcFunHandle(rpc))
 }

@@ -1,13 +1,14 @@
 package hbtp
 
 import (
+	"context"
 	"encoding/json"
 	"net"
 	"net/url"
 )
 
 type Context struct {
-	clve    bool
+	own     bool
 	conn    net.Conn
 	control int32
 	cmd     string
@@ -20,9 +21,12 @@ type Context struct {
 	data *Map
 }
 
+func (c *Context) IsOwn() bool {
+	return c.own
+}
 func (c *Context) Conn(ownership ...bool) net.Conn {
 	if len(ownership) > 0 {
-		c.clve = !ownership[0]
+		c.own = !ownership[0]
 	}
 	return c.conn
 }
@@ -122,4 +126,56 @@ func (c *Context) GetData(k string) (interface{}, bool) {
 		c.data = NewMap()
 	}
 	return c.data.Get(k)
+}
+
+func ParseContext(ctx context.Context, conn net.Conn, cfg Config) (*Context, error) {
+	info := &msgInfo{}
+	infoln, _ := Size4Struct(info)
+	ctx, _ = context.WithTimeout(ctx, cfg.TmsInfo)
+	bts, err := TcpRead(ctx, conn, uint(infoln))
+	if err != nil {
+		return nil, err
+	}
+	err = Byte2Struct(bts, info)
+	if err != nil {
+		return nil, err
+	}
+	rt := &Context{
+		own:     true,
+		conn:    conn,
+		control: info.Control,
+	}
+	ctx, _ = context.WithTimeout(ctx, cfg.TmsHead)
+	if info.LenCmd > 0 {
+		bts, err = TcpRead(ctx, conn, uint(info.LenCmd))
+		if err != nil {
+			return nil, err
+		}
+		rt.cmd = string(bts)
+	}
+	if info.LenArg > 0 {
+		bts, err = TcpRead(ctx, conn, uint(info.LenArg))
+		if err != nil {
+			return nil, err
+		}
+		args, err := url.ParseQuery(string(bts))
+		if err == nil {
+			rt.args = args
+		}
+	}
+	if info.LenHead > 0 {
+		rt.hds, err = TcpRead(ctx, conn, uint(info.LenHead))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	ctx, _ = context.WithTimeout(ctx, cfg.TmsBody)
+	if info.LenBody > 0 {
+		rt.bds, err = TcpRead(ctx, conn, uint(info.LenBody))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return rt, nil
 }

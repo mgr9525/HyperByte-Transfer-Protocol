@@ -59,7 +59,7 @@ func appendParams(self *reflect.Value, c *Context, fnt reflect.Type) ([]reflect.
 	}
 	return inls, nil
 }
-func paramFunHandle(fn interface{}, authfn ...AuthFun) ConnFun {
+func ParamFunHandle(fn interface{}, authfn ...AuthFun) ConnFun {
 	fnv := reflect.ValueOf(fn)
 	if fnv.Kind() != reflect.Func {
 		return nil
@@ -80,7 +80,7 @@ func paramFunHandle(fn interface{}, authfn ...AuthFun) ConnFun {
 	}
 }
 
-func grpcFunHandle(t IRPCRoute) ConnFun {
+func GrpcFunHandle(t IRPCRoute) ConnFun {
 	tv := reflect.ValueOf(t)
 	ty := tv.Type()
 	if ty.Kind() != reflect.Ptr {

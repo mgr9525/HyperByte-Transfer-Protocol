@@ -11,7 +11,7 @@ import (
 
 type Request struct {
 	conf    Config
-	clve    bool
+	own     bool
 	addr    string
 	timeout time.Duration
 	conn    net.Conn
@@ -70,7 +70,7 @@ func NewRequest(addr string, control int32, timeout ...time.Duration) *Request {
 	}
 	cli := &Request{
 		conf:    MakeConfig(),
-		clve:    true,
+		own:     true,
 		addr:    addr,
 		timeout: tmo,
 		control: control,
@@ -84,7 +84,7 @@ func NewConnRequest(conn net.Conn, control int32, timeout ...time.Duration) *Req
 	}
 	cli := &Request{
 		conf:    MakeConfig(),
-		clve:    true,
+		own:     true,
 		conn:    conn,
 		timeout: tmo,
 		control: control,
@@ -113,6 +113,13 @@ func (c *Request) Command(cmd string) *Request {
 }
 func (c *Request) Args(args url.Values) *Request {
 	c.args = args
+	return c
+}
+func (c *Request) SetArg(k, v string) *Request {
+	if c.args == nil {
+		c.args = url.Values{}
+	}
+	c.args.Set(k, v)
 	return c
 }
 func (c *Request) write(bts []byte) (int, error) {
@@ -269,12 +276,12 @@ func (c *Request) Do(ctx context.Context, body interface{}, hds ...interface{}) 
 */
 func (c *Request) Conn(ownership ...bool) net.Conn {
 	if len(ownership) > 0 {
-		c.clve = !ownership[0]
+		c.own = !ownership[0]
 	}
 	return c.conn
 }
 func (c *Request) Close() error {
-	if c.clve && c.conn != nil {
+	if c.own && c.conn != nil {
 		return c.conn.Close()
 	}
 	if c.cncl != nil {

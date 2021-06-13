@@ -3,7 +3,6 @@ package hbtp
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"sync"
 	"testing"
 	"time"
@@ -74,10 +73,8 @@ func (e *testFuns) Runs(c *Context, body string) {
 	c.ResString(ResStatusOk, "ok")
 }
 func TestRPCReq(t *testing.T) {
-	pars := url.Values{}
-	pars.Set("token", "123456")
 	req := NewRequest("localhost:7030", 2).
-		Command("GetName1").Args(pars)
+		Command("GetName1").SetArg("token", "123456")
 	defer req.Close()
 	err := req.Do(nil, []byte("hello world"))
 	if err != nil {
@@ -92,10 +89,8 @@ func TestRPCReq(t *testing.T) {
 	}
 	println("GetName1 req body:", string(req.ResBodyBytes()))
 
-	pars = url.Values{}
-	pars.Set("token", "1234567")
 	req = NewRequest("localhost:7030", 2).
-		Command("GetName2").Args(pars)
+		Command("GetName2").SetArg("token", "1234567")
 	defer req.Close()
 	err = req.Do(nil, []byte("hello world"))
 	if err != nil {
@@ -112,10 +107,8 @@ func TestRPCReq(t *testing.T) {
 }
 
 func testRPCs(in int) {
-	pars := url.Values{}
-	pars.Set("token", "123456")
 	req := NewRequest("localhost:7030", 2).
-		Command("Runs").Args(pars)
+		Command("Runs").SetArg("token", "123456")
 	err := req.Do(nil, fmt.Sprintf("%d", in))
 	defer req.Close()
 	if err != nil {

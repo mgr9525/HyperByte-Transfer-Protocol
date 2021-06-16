@@ -147,37 +147,15 @@ type SliceMock struct {
 	cap  uint
 }
 
-func Size4Struct(pt interface{}) (uint32, error) {
-	if pt == nil {
-		return 0, errors.New("param is nil")
-	}
-	ptv := reflect.ValueOf(pt)
-	pte := ptv
-	if ptv.Kind() == reflect.Ptr {
-		if ptv.IsZero() {
-			return 0, errors.New("pt is not ptr")
-		}
-		pte = ptv.Elem()
-	}
-	if pte.Kind() != reflect.Struct {
-		return 0, fmt.Errorf("*pt is not struct:%s", pte.Kind())
-	}
-	ln := unsafe.Sizeof(pte.Interface())
-	return uint32(ln), nil
-}
 func Struct2Byte(pt interface{}) ([]byte, error) {
 	if pt == nil {
 		return nil, errors.New("param is nil")
 	}
+	ln := SizeOf(pt)
 	ptv := reflect.ValueOf(pt)
 	if ptv.Kind() != reflect.Ptr && !ptv.IsZero() {
 		return nil, errors.New("pt is not ptr")
 	}
-	pte := ptv.Elem()
-	if pte.Kind() != reflect.Struct {
-		return nil, fmt.Errorf("*pt is not struct:%s", pte.Kind())
-	}
-	ln := unsafe.Sizeof(pte.Interface())
 	return Struct2Bytes(unsafe.Pointer(ptv.Pointer()), ln)
 }
 func Byte2Struct(data []byte, pt interface{}) error {
@@ -195,7 +173,7 @@ func Byte2Struct(data []byte, pt interface{}) error {
 	//ln:=unsafe.Sizeof(pte.Interface())
 	return Bytes2Struct(data, unsafe.Pointer(ptv.Pointer()))
 }
-func Struct2Bytes(pt unsafe.Pointer, ln uintptr) ([]byte, error) {
+func Struct2Bytes(pt unsafe.Pointer, ln int) ([]byte, error) {
 	if pt == nil {
 		return nil, errors.New("param is nil")
 	}

@@ -1,7 +1,7 @@
 package hbtp
 
 type msgInfo struct {
-	Version int16
+	Version uint16
 	Control int32
 	LenCmd  uint16
 	LenArg  uint16

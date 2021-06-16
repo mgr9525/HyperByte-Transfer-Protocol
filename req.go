@@ -220,7 +220,7 @@ func (c *Request) Res() error {
 		return errors.New("need do some thing")
 	}
 	info := &resInfoV1{}
-	infoln, _ := Size4Struct(info)
+	infoln := SizeOf(info)
 	bts, err := TcpRead(c.ctx, c.conn, uint(infoln))
 	if err != nil {
 		return err

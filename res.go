@@ -131,7 +131,7 @@ func (c *Context) GetData(k string) (interface{}, bool) {
 
 func ParseContext(ctx context.Context, conn net.Conn, cfg Config) (*Context, error) {
 	info := &msgInfo{}
-	infoln, _ := Size4Struct(info)
+	infoln := SizeOf(info)
 	ctx, _ = context.WithTimeout(ctx, cfg.TmsInfo)
 	bts, err := TcpRead(ctx, conn, uint(infoln))
 	if err != nil {

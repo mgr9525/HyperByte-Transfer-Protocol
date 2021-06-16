@@ -8,7 +8,7 @@ type msgInfo struct {
 	LenHead uint32
 	LenBody uint32
 }
-type resInfo struct {
+type resInfoV1 struct {
 	Code    int32
 	LenHead uint32
 	LenBody uint32

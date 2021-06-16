@@ -3,6 +3,7 @@ package hbtp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net"
 	"net/url"
 )
@@ -59,7 +60,7 @@ func (c *Context) BodyBytes() []byte {
 }
 
 func (c *Context) response(code int32, hds []byte, bds []byte) error {
-	info := &resInfo{
+	info := &resInfoV1{
 		Code:    code,
 		LenHead: uint32(len(hds)),
 		LenBody: uint32(len(bds)),
@@ -139,6 +140,9 @@ func ParseContext(ctx context.Context, conn net.Conn, cfg Config) (*Context, err
 	err = Byte2Struct(bts, info)
 	if err != nil {
 		return nil, err
+	}
+	if info.Version != 1 {
+		return nil, errors.New("not found version")
 	}
 	rt := &Context{
 		own:     true,

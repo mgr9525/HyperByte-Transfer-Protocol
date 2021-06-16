@@ -152,6 +152,12 @@ func Struct2Byte(pt interface{}) ([]byte, error) {
 		return nil, errors.New("param is nil")
 	}
 	ln := SizeOf(pt)
+	return Struct2ByteLen(pt, ln)
+}
+func Struct2ByteLen(pt interface{}, ln int) ([]byte, error) {
+	if pt == nil {
+		return nil, errors.New("param is nil")
+	}
 	ptv := reflect.ValueOf(pt)
 	if ptv.Kind() != reflect.Ptr && !ptv.IsZero() {
 		return nil, errors.New("pt is not ptr")
@@ -170,7 +176,6 @@ func Byte2Struct(data []byte, pt interface{}) error {
 	if pte.Kind() != reflect.Struct {
 		return fmt.Errorf("*pt is not struct:%s", pte.Kind())
 	}
-	//ln:=unsafe.Sizeof(pte.Interface())
 	return Bytes2Struct(data, unsafe.Pointer(ptv.Pointer()))
 }
 func Struct2Bytes(pt unsafe.Pointer, ln int) ([]byte, error) {

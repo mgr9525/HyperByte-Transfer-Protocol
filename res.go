@@ -65,7 +65,7 @@ func (c *Context) response(code int32, hds []byte, bds []byte) error {
 		LenHead: uint32(len(hds)),
 		LenBody: uint32(len(bds)),
 	}
-	bts, err := Struct2Byte(info)
+	bts, err := Struct2ByteLen(info, lenResInfoV1)
 	if err != nil {
 		return err
 	}

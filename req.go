@@ -181,7 +181,7 @@ func (c *Request) send(bds []byte, hds ...interface{}) error {
 		LenHead: uint32(len(hd)),
 		LenBody: uint32(len(bds)),
 	}
-	bts, err := Struct2Byte(info)
+	bts, err := Struct2ByteLen(info, lenMsgInfo)
 	if err != nil {
 		return err
 	}

@@ -1,5 +1,10 @@
 package hbtp
 
+var (
+	lenMsgInfo   = SizeOf(new(msgInfo))
+	lenResInfoV1 = SizeOf(new(resInfoV1))
+)
+
 type msgInfo struct {
 	Version uint16
 	Control int32

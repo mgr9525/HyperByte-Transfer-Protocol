@@ -174,6 +174,7 @@ func (c *Request) send(bds []byte, hds ...interface{}) error {
 		args = c.args.Encode()
 	}
 	info := &msgInfo{
+		Version: 1,
 		Control: c.control,
 		LenCmd:  uint16(len(c.cmd)),
 		LenArg:  uint16(len(args)),

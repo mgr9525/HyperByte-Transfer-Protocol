@@ -54,7 +54,7 @@ func (c *Engine) Run(host string) error {
 	}
 	c.lsr = lsr
 	//go func() {
-	Debugf("hbtp run on:%s", host)
+	Infof("hbtp run on:%s", host)
 	for !EndContext(c.ctx) {
 		c.runAcp()
 	}

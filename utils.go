@@ -38,9 +38,9 @@ var Debug = false
 func Infof(s string, args ...interface{}) {
 	tms := time.Now().Format("2006-01-02 15:04:05")
 	if len(args) > 0 {
-		fmt.Println(tms + "  " + fmt.Sprintf(s, args...))
+		fmt.Println(tms + " " + fmt.Sprintf(s, args...))
 	} else {
-		fmt.Println(tms + "  " + s)
+		fmt.Println(tms + " " + s)
 	}
 }
 func Debugf(s string, args ...interface{}) {
@@ -49,19 +49,24 @@ func Debugf(s string, args ...interface{}) {
 	}
 	tms := time.Now().Format("2006-01-02 15:04:05")
 	if len(args) > 0 {
-		println(tms + "  " + fmt.Sprintf(s, args...))
+		println(tms + " " + fmt.Sprintf(s, args...))
 	} else {
-		println(tms + "  " + s)
+		println(tms + " " + s)
 	}
 }
 
 func TcpRead(ctx context.Context, conn net.Conn, ln uint) ([]byte, error) {
+	var buf *bytes.Buffer
 	if conn == nil || ln <= 0 {
 		return nil, errors.New("handleRead ln<0")
 	}
 	rn := uint(0)
-	bts := make([]byte, 10240)
-	buf := &bytes.Buffer{}
+	tn := ln
+	if ln > 10240 {
+		tn = 10240
+		buf = &bytes.Buffer{}
+	}
+	bts := make([]byte, tn)
 	for {
 		if EndContext(ctx) {
 			return nil, errors.New("context dead")
@@ -69,7 +74,9 @@ func TcpRead(ctx context.Context, conn net.Conn, ln uint) ([]byte, error) {
 		n, err := conn.Read(bts)
 		if n > 0 {
 			rn += uint(n)
-			buf.Write(bts[:n])
+			if buf != nil {
+				buf.Write(bts[:n])
+			}
 		}
 		if rn >= ln {
 			break
@@ -81,7 +88,10 @@ func TcpRead(ctx context.Context, conn net.Conn, ln uint) ([]byte, error) {
 			return nil, errors.New("conn abort")
 		}
 	}
-	return buf.Bytes(), nil
+	if buf != nil {
+		return buf.Bytes(), nil
+	}
+	return bts, nil
 }
 
 // BigEndian

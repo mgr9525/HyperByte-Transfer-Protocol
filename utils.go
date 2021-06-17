@@ -1,6 +1,7 @@
 package hbtp
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -49,14 +50,16 @@ func TcpRead(ctx context.Context, conn net.Conn, ln uint) ([]byte, error) {
 		return nil, errors.New("handleRead ln<0")
 	}
 	rn := uint(0)
-	rt := make([]byte, ln)
+	bts := make([]byte, 10240)
+	buf := &bytes.Buffer{}
 	for {
 		if EndContext(ctx) {
 			return nil, errors.New("context dead")
 		}
-		n, err := conn.Read(rt[rn:])
+		n, err := conn.Read(bts)
 		if n > 0 {
 			rn += uint(n)
+			buf.Write(bts[:n])
 		}
 		if rn >= ln {
 			break
@@ -68,7 +71,7 @@ func TcpRead(ctx context.Context, conn net.Conn, ln uint) ([]byte, error) {
 			return nil, errors.New("conn abort")
 		}
 	}
-	return rt, nil
+	return buf.Bytes(), nil
 }
 
 // BigEndian

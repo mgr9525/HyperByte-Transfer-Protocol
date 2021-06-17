@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"time"
 	"unsafe"
 )
 
@@ -34,14 +35,23 @@ func EndContext(ctx context.Context) bool {
 
 var Debug = false
 
+func Infof(s string, args ...interface{}) {
+	tms := time.Now().Format("2006-01-02 15:04:05")
+	if len(args) > 0 {
+		fmt.Println(tms + "  " + fmt.Sprintf(s, args...))
+	} else {
+		fmt.Println(tms + "  " + s)
+	}
+}
 func Debugf(s string, args ...interface{}) {
 	if !Debug {
 		return
 	}
+	tms := time.Now().Format("2006-01-02 15:04:05")
 	if len(args) > 0 {
-		println(fmt.Sprintf(s, args...))
+		println(tms + "  " + fmt.Sprintf(s, args...))
 	} else {
-		println(s)
+		println(tms + "  " + s)
 	}
 }
 

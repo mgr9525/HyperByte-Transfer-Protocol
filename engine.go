@@ -121,6 +121,9 @@ func (c *Engine) recoverCallMapfn(res *Context) (rt bool) {
 	} else {
 		res.ResString(ResStatusNotFound, "Not Found Control Function")
 	}
+	if !res.Sended() {
+		res.ResString(ResStatusErr, "Unknown")
+	}
 	return res.IsOwn()
 }
 

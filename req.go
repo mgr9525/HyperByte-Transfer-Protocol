@@ -15,6 +15,7 @@ type Request struct {
 	addr    string
 	timeout time.Duration
 	conn    net.Conn
+	sended  bool
 	control int32
 	cmd     string
 	args    url.Values
@@ -136,6 +137,9 @@ func (c *Request) write(bts []byte) (int, error) {
 	return n, nil
 }
 func (c *Request) send(bds []byte, hds ...interface{}) error {
+	if c.sended {
+		return errors.New("already send")
+	}
 	var err error
 	c.started = time.Now()
 	if c.conn == nil {
@@ -185,6 +189,7 @@ func (c *Request) send(bds []byte, hds ...interface{}) error {
 	if err != nil {
 		return err
 	}
+	c.sended = true
 	_, err = c.write(bts)
 	if err != nil {
 		return err
@@ -216,6 +221,9 @@ func (c *Request) send(bds []byte, hds ...interface{}) error {
 	return nil
 }
 func (c *Request) Res() error {
+	if !c.sended {
+		return errors.New("not send")
+	}
 	if c.ctx == nil || c.conn == nil {
 		return errors.New("need do some thing")
 	}

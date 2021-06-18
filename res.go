@@ -11,6 +11,7 @@ import (
 type Context struct {
 	own     bool
 	conn    net.Conn
+	sended  bool
 	control int32
 	cmd     string
 	args    url.Values
@@ -22,6 +23,9 @@ type Context struct {
 	data *Map
 }
 
+func (c *Context) Sended() bool {
+	return c.sended
+}
 func (c *Context) IsOwn() bool {
 	return c.own
 }
@@ -60,6 +64,9 @@ func (c *Context) BodyBytes() []byte {
 }
 
 func (c *Context) response(code int32, hds []byte, bds []byte) error {
+	if c.sended {
+		return errors.New("already send")
+	}
 	info := &resInfoV1{
 		Code:    code,
 		LenHead: uint32(len(hds)),
@@ -69,6 +76,7 @@ func (c *Context) response(code int32, hds []byte, bds []byte) error {
 	if err != nil {
 		return err
 	}
+	c.sended = true
 	_, err = c.conn.Write(bts)
 	if err != nil {
 		return err

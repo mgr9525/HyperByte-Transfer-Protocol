@@ -41,9 +41,17 @@ var Debug = false
 func Infof(s string, args ...interface{}) {
 	tms := time.Now().Format("2006-01-02 15:04:05")
 	if len(args) > 0 {
-		fmt.Println(tms + " " + fmt.Sprintf(s, args...))
+		fmt.Println(tms + " [info] " + fmt.Sprintf(s, args...))
 	} else {
-		fmt.Println(tms + " " + s)
+		fmt.Println(tms + " [info] " + s)
+	}
+}
+func Errorf(s string, args ...interface{}) {
+	tms := time.Now().Format("2006-01-02 15:04:05")
+	if len(args) > 0 {
+		println(tms + " [err] " + fmt.Sprintf(s, args...))
+	} else {
+		println(tms + " [err] " + s)
 	}
 }
 func Debugf(s string, args ...interface{}) {
@@ -52,9 +60,9 @@ func Debugf(s string, args ...interface{}) {
 	}
 	tms := time.Now().Format("2006-01-02 15:04:05")
 	if len(args) > 0 {
-		println(tms + " " + fmt.Sprintf(s, args...))
+		println(tms + " [debug] " + fmt.Sprintf(s, args...))
 	} else {
-		println(tms + " " + s)
+		println(tms + " [debug] " + s)
 	}
 }
 

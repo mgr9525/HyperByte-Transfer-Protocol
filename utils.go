@@ -67,6 +67,8 @@ func Debugf(s string, args ...interface{}) {
 }
 
 func TcpRead(ctx context.Context, conn net.Conn, ln uint) ([]byte, error) {
+	var n int
+	var err error
 	var buf *bytes.Buffer
 	if conn == nil || ln <= 0 {
 		return nil, errors.New("handleRead ln<0")
@@ -82,7 +84,7 @@ func TcpRead(ctx context.Context, conn net.Conn, ln uint) ([]byte, error) {
 		if EndContext(ctx) {
 			return nil, errors.New("context dead")
 		}
-		n, err := conn.Read(bts)
+		n, err = conn.Read(bts)
 		if n > 0 {
 			rn += uint(n)
 			if buf != nil {
@@ -93,16 +95,16 @@ func TcpRead(ctx context.Context, conn net.Conn, ln uint) ([]byte, error) {
 			break
 		}
 		if err != nil {
-			return nil, err
+			break
 		}
 		if n <= 0 {
 			return nil, errors.New("conn abort")
 		}
 	}
 	if buf != nil {
-		return buf.Bytes(), nil
+		return buf.Bytes(), err
 	}
-	return bts, nil
+	return bts, err
 }
 
 // BigEndian

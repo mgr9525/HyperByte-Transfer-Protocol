@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"net/url"
 )
@@ -106,6 +107,12 @@ func (c *Context) ResBytes(code int32, bdbts []byte, hds ...[]byte) error {
 }
 func (c *Context) ResString(code int32, s string, hds ...[]byte) error {
 	return c.ResBytes(code, []byte(s), hds...)
+}
+func (c *Context) ResStringf(code int32, s string, o ...interface{}) error {
+	if len(o) > 0 {
+		s = fmt.Sprintf(s, o...)
+	}
+	return c.ResBytes(code, []byte(s))
 }
 
 func (c *Context) ResJson(code int32, body interface{}, hds ...[]byte) error {

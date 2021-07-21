@@ -12,17 +12,17 @@ func DoJson(req *Request, in, out interface{}, hd ...Map) error {
 	defer req.Close()
 	if len(hd) > 0 && hd[0] != nil {
 		for k, v := range hd[0] {
-			req.ReqHeader().Set(k, v)
+			req.Header().Set(k, v)
 		}
 	}
-	err := req.Do(nil, in)
+	res, err := req.Do(nil, in)
 	if err != nil {
 		return err
 	}
-	if req.ResCode() != ResStatusOk {
-		return fmt.Errorf("res err(%d):%s", req.ResCode(), string(req.ResBodyBytes()))
+	if res.Code() != ResStatusOk {
+		return fmt.Errorf("res err(%d):%s", res.Code(), string(res.BodyBytes()))
 	}
-	return req.ResBodyJson(out)
+	return res.BodyJson(out)
 }
 func DoString(req *Request, in interface{}, hd ...Map) (int32, []byte, error) {
 	if req == nil {
@@ -31,12 +31,12 @@ func DoString(req *Request, in interface{}, hd ...Map) (int32, []byte, error) {
 	defer req.Close()
 	if len(hd) > 0 && hd[0] != nil {
 		for k, v := range hd[0] {
-			req.ReqHeader().Set(k, v)
+			req.Header().Set(k, v)
 		}
 	}
-	err := req.Do(nil, in)
+	res, err := req.Do(nil, in)
 	if err != nil {
 		return 0, nil, err
 	}
-	return req.ResCode(), req.ResBodyBytes(), nil
+	return res.Code(), res.BodyBytes(), nil
 }

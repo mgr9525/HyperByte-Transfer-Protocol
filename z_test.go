@@ -30,21 +30,21 @@ func helloWorldFun(c *Context) {
 }
 
 func TestRequest(t *testing.T) {
-	req := NewRequest("localhost:7030", 1)
+	req := NewRequest("localhost:7030", 1).Command("/hello/test")
 	defer req.Close()
 	//req.ReqHeader().Set("host", "test.host.com")
-	err := req.Do(nil, []byte("hello world"))
+	res, err := req.Do(nil, []byte("hello world"))
 	if err != nil {
 		println("NewRequest err:", err.Error())
 		return
 	}
-	println("req code:", req.ResCode())
-	hdr, err := req.ResHeader()
+	println("req code:", res.Code())
+	hdr, err := res.Header()
 	if err == nil {
 		cookie := hdr.GetString("cookie")
 		println("req cookie:", cookie)
 	}
-	println("req body:", string(req.ResBodyBytes()))
+	println("req body:", string(res.BodyBytes()))
 }
 
 type testFuns struct {
@@ -76,46 +76,46 @@ func TestRPCReq(t *testing.T) {
 	req := NewRequest("localhost:7030", 2).
 		Command("GetName1").SetArg("token", "123456")
 	defer req.Close()
-	err := req.Do(nil, []byte("hello world"))
+	res, err := req.Do(nil, []byte("hello world"))
 	if err != nil {
 		println("NewRequest err:", err.Error())
 		return
 	}
-	println("GetName1 res code:", req.ResCode())
-	hdr, err := req.ResHeader()
+	println("GetName1 res code:", res.Code())
+	hdr, err := res.Header()
 	if err == nil {
 		cookie := hdr.GetString("cookie")
 		println("req cookie:", cookie)
 	}
-	println("GetName1 req body:", string(req.ResBodyBytes()))
+	println("GetName1 req body:", string(res.BodyBytes()))
 
 	req = NewRequest("localhost:7030", 2).
 		Command("GetName2").SetArg("token", "1234567")
 	defer req.Close()
-	err = req.Do(nil, []byte("hello world"))
+	res, err = req.Do(nil, []byte("hello world"))
 	if err != nil {
 		println("NewRequest err:", err.Error())
 		return
 	}
-	println("GetName2 res code:", req.ResCode())
-	hdr, err = req.ResHeader()
+	println("GetName2 res code:", res.Code())
+	hdr, err = res.Header()
 	if err == nil {
 		cookie := hdr.GetString("cookie")
 		println("req cookie:", cookie)
 	}
-	println("GetName2 req body:", string(req.ResBodyBytes()))
+	println("GetName2 req body:", string(res.BodyBytes()))
 }
 
 func testRPCs(in int) {
 	req := NewRequest("localhost:7030", 2).
 		Command("Runs").SetArg("token", "123456")
-	err := req.Do(nil, fmt.Sprintf("%d", in))
+	res, err := req.Do(nil, fmt.Sprintf("%d", in))
 	defer req.Close()
 	if err != nil {
 		println("NewRequest err:", err.Error())
 		return
 	}
-	fmt.Println(fmt.Sprintf("Runs res(%d) body:%s", req.ResCode(), string(req.ResBodyBytes())))
+	fmt.Println(fmt.Sprintf("Runs res(%d) body:%s", res.Code(), string(res.BodyBytes())))
 }
 func TestRPCReqs(t *testing.T) {
 	wg := &sync.WaitGroup{}

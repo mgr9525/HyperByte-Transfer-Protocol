@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-//返回true则连接不会关闭
 type ConnFun func(res *Context)
 
 type Engine struct {
@@ -17,7 +16,7 @@ type Engine struct {
 	lsr  net.Listener
 
 	fnlk  sync.Mutex
-	fns   map[int32]ConnFun
+	fns   map[int32][]ConnFun
 	notfn ConnFun
 
 	conf Config
@@ -25,7 +24,7 @@ type Engine struct {
 
 func NewEngine(ctx context.Context) *Engine {
 	c := &Engine{
-		fns:  make(map[int32]ConnFun),
+		fns:  make(map[int32][]ConnFun),
 		conf: MakeConfig(),
 	}
 	c.ctx, c.cncl = context.WithCancel(ctx)
@@ -86,36 +85,35 @@ func (c *Engine) handleConn(conn net.Conn) {
 			Debugf("%s", string(debug.Stack()))
 		}
 	}()
-	needclose := true
-	defer func() {
-		if needclose {
-			conn.Close()
-		}
-	}()
 
 	res, err := ParseContext(c.ctx, conn, c.conf)
 	if err != nil {
 		Debugf("Engine handleConn ParseContext err:%+v", err)
 		return
 	}
-
-	needclose = c.recoverCallMapfn(res)
+	c.recoverCallMapfn(res)
+	if res.conn != nil {
+		res.conn.Close()
+	}
 }
-func (c *Engine) recoverCallMapfn(res *Context) (rt bool) {
-	rt = false
+func (c *Engine) recoverCallMapfn(res *Context) {
 	defer func() {
 		if err := recover(); err != nil {
-			rt = false
 			Debugf("Engine recoverCallMapfn recover:%+v", err)
 			Debugf("%s", string(debug.Stack()))
 		}
 	}()
 
 	c.fnlk.Lock()
-	fn, ok := c.fns[res.Control()]
+	fns, ok := c.fns[res.Control()]
 	c.fnlk.Unlock()
-	if ok && fn != nil {
-		fn(res)
+	if ok {
+		for _, fn := range fns {
+			if res.Sended() {
+				break
+			}
+			fn(res)
+		}
 	} else if c.notfn != nil {
 		c.notfn(res)
 	} else {
@@ -124,7 +122,6 @@ func (c *Engine) recoverCallMapfn(res *Context) (rt bool) {
 	if !res.Sended() {
 		res.ResString(ResStatusErr, "Unknown")
 	}
-	return res.IsOwn()
 }
 
 func (c *Engine) RegFun(control int32, fn ConnFun) bool {
@@ -135,7 +132,9 @@ func (c *Engine) RegFun(control int32, fn ConnFun) bool {
 		Debugf("Engine RegFun err:control(%d) is exist", control)
 		return false
 	}
-	c.fns[control] = fn
+	fns := c.fns[control]
+	fns = append(fns, fn)
+	c.fns[control] = fns
 	return true
 }
 func (c *Engine) RegParamFun(control int32, fn interface{}) bool {

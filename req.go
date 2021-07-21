@@ -11,7 +11,6 @@ import (
 
 type Request struct {
 	conf    Config
-	own     bool
 	addr    string
 	timeout time.Duration
 	conn    net.Conn
@@ -20,48 +19,17 @@ type Request struct {
 	cmd     string
 	args    url.Values
 
-	code  int32
-	hdsrs []byte
-	bdsrs []byte
-
 	ctx  context.Context
 	cncl context.CancelFunc
 
-	hdrq *Map
-	hdrs *Map
-
-	started time.Time
+	header *Map
 }
 
-func (c *Request) ReqHeader() *Map {
-	if c.hdrq == nil {
-		c.hdrq = NewMap()
+func (c *Request) Header() *Map {
+	if c.header == nil {
+		c.header = NewMap()
 	}
-	return c.hdrq
-}
-func (c *Request) ResHeader() (*Map, error) {
-	if c.hdsrs == nil {
-		return nil, errors.New("is do?")
-	}
-	if c.hdrs == nil {
-		c.hdrs = NewMaps(c.hdsrs)
-	}
-	return c.hdrs, nil
-}
-func (c *Request) ResCode() int32 {
-	return c.code
-}
-func (c *Request) ResHeadBytes() []byte {
-	return c.hdsrs
-}
-func (c *Request) ResBodyBytes() []byte {
-	return c.bdsrs
-}
-func (c *Request) ResBodyJson(bd interface{}) error {
-	if c.bdsrs == nil {
-		return errors.New("is do?")
-	}
-	return json.Unmarshal(c.bdsrs, bd)
+	return c.header
 }
 
 func NewRequest(addr string, control int32, timeout ...time.Duration) *Request {
@@ -71,7 +39,6 @@ func NewRequest(addr string, control int32, timeout ...time.Duration) *Request {
 	}
 	cli := &Request{
 		conf:    MakeConfig(),
-		own:     true,
 		addr:    addr,
 		timeout: tmo,
 		control: control,
@@ -85,7 +52,6 @@ func NewConnRequest(conn net.Conn, control int32, timeout ...time.Duration) *Req
 	}
 	cli := &Request{
 		conf:    MakeConfig(),
-		own:     true,
 		conn:    conn,
 		timeout: tmo,
 		control: control,
@@ -141,7 +107,6 @@ func (c *Request) send(bds []byte, hds ...interface{}) error {
 		return errors.New("already send")
 	}
 	var err error
-	c.started = time.Now()
 	if c.conn == nil {
 		if c.addr == "" {
 			return errors.New("addr is empty")
@@ -169,8 +134,8 @@ func (c *Request) send(bds []byte, hds ...interface{}) error {
 				return err
 			}
 		}
-	} else if c.hdrq != nil {
-		hd = c.hdrq.ToBytes()
+	} else if c.header != nil {
+		hd = c.header.ToBytes()
 	}
 
 	var args string
@@ -185,7 +150,7 @@ func (c *Request) send(bds []byte, hds ...interface{}) error {
 		LenHead: uint32(len(hd)),
 		LenBody: uint32(len(bds)),
 	}
-	bts, err := Struct2ByteLen(info, lenMsgInfo)
+	bts, err := FlcStruct2Byte(info)
 	if err != nil {
 		return err
 	}
@@ -220,37 +185,43 @@ func (c *Request) send(bds []byte, hds ...interface{}) error {
 	}
 	return nil
 }
-func (c *Request) Res() error {
+func (c *Request) Res() (*Response, error) {
 	if !c.sended {
-		return errors.New("not send")
+		return nil, errors.New("not send")
 	}
 	if c.ctx == nil || c.conn == nil {
-		return errors.New("need do some thing")
+		return nil, errors.New("need do some thing")
 	}
 	info := &resInfoV1{}
-	infoln := SizeOf(info)
+	infoln := FlcStructSizeof(info)
 	bts, err := TcpRead(c.ctx, c.conn, uint(infoln))
 	if err != nil {
-		return err
+		return nil, err
 	}
-	err = Byte2Struct(bts, info)
+	err = FlcByte2Struct(bts, info)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	c.code = info.Code
+	if uint64(info.LenHead) > MaxHeads {
+		return nil, errors.New("bytes2 out limit!!")
+	}
+	if uint64(info.LenBody) > MaxBodys {
+		return nil, errors.New("bytes3 out limit!!")
+	}
+	rt := &Response{code: info.Code}
 	if info.LenHead > 0 {
-		c.hdsrs, err = TcpRead(c.ctx, c.conn, uint(info.LenHead))
+		rt.heads, err = TcpRead(c.ctx, c.conn, uint(info.LenHead))
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	if info.LenBody > 0 {
-		c.bdsrs, err = TcpRead(c.ctx, c.conn, uint(info.LenBody))
+		rt.bodys, err = TcpRead(c.ctx, c.conn, uint(info.LenBody))
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return rt, nil
 }
 func (c *Request) DoNoRes(ctx context.Context, body interface{}, hds ...interface{}) error {
 	c.ctx = ctx
@@ -271,10 +242,10 @@ func (c *Request) DoNoRes(ctx context.Context, body interface{}, hds ...interfac
 	}
 	return c.send(bdbts, hds...)
 }
-func (c *Request) Do(ctx context.Context, body interface{}, hds ...interface{}) error {
+func (c *Request) Do(ctx context.Context, body interface{}, hds ...interface{}) (*Response, error) {
 	err := c.DoNoRes(ctx, body, hds...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	return c.Res()
 }
@@ -284,13 +255,15 @@ func (c *Request) Do(ctx context.Context, body interface{}, hds ...interface{}) 
 	so you need close manual.
 */
 func (c *Request) Conn(ownership ...bool) net.Conn {
-	if len(ownership) > 0 {
-		c.own = !ownership[0]
-	}
+	defer func() {
+		if len(ownership) > 0 && ownership[0] {
+			c.conn = nil
+		}
+	}()
 	return c.conn
 }
 func (c *Request) Close() error {
-	if c.own && c.conn != nil {
+	if c.conn != nil {
 		return c.conn.Close()
 	}
 	if c.cncl != nil {

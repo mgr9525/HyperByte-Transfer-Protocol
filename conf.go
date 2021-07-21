@@ -2,6 +2,9 @@ package hbtp
 
 import "time"
 
+const MaxOther uint64 = 1024 * 1024 * 20   //20M
+const MaxHeads uint64 = 1024 * 1024 * 100  //100M
+const MaxBodys uint64 = 1024 * 1024 * 1024 //1G
 type Config struct {
 	TmsInfo time.Duration
 	TmsHead time.Duration

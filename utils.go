@@ -104,6 +104,25 @@ func TcpRead(ctx context.Context, conn net.Conn, ln uint) ([]byte, error) {
 	}
 	return bts, nil
 }
+func TcpWrite(ctx context.Context, conn net.Conn, bts []byte) error {
+	ln := len(bts)
+	if conn == nil || ln <= 0 {
+		return errors.New("handleRead ln<0")
+	}
+
+	wn := 0
+	for wn < ln {
+		if EndContext(ctx) {
+			return errors.New("context dead")
+		}
+		n, err := conn.Write(bts[wn:])
+		if err != nil {
+			return err
+		}
+		wn += n
+	}
+	return nil
+}
 
 // BigEndian
 func BigByteToInt(data []byte) int64 {

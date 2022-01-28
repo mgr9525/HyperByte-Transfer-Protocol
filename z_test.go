@@ -25,6 +25,7 @@ func helloWorldFun(c *Context) {
 	host := c.ReqHeader().GetString("host")
 	println("helloWorldFun header host:" + host)
 	println("helloWorldFun body:" + string(c.BodyBytes()))
+	println("helloWorldFun arg hehe1:" + c.Args().Get("hehe1"))
 	c.ResHeader().Set("cookie", "1234567")
 	c.ResString(ResStatusOk, "ok")
 }
@@ -32,6 +33,8 @@ func helloWorldFun(c *Context) {
 func TestRequest(t *testing.T) {
 	req := NewRequest("localhost:7030", 1).Command("/hello/test")
 	defer req.Close()
+	req.Command("123")
+	req.SetArg("hehe1", "asdfs23423")
 	//req.ReqHeader().Set("host", "test.host.com")
 	res, err := req.Do(nil, []byte("hello world"))
 	if err != nil {

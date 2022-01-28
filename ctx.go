@@ -76,18 +76,18 @@ func (c *Context) response(code int32, hds []byte, bds []byte) error {
 		return err
 	}
 	c.sended = true
-	_, err = c.conn.Write(bts)
+	err = TcpWrite(context.Background(), c.conn, bts)
 	if err != nil {
 		return err
 	}
 	if info.LenHead > 0 {
-		_, err = c.conn.Write(hds)
+		err = TcpWrite(context.Background(), c.conn, hds)
 		if err != nil {
 			return err
 		}
 	}
 	if info.LenBody > 0 {
-		_, err = c.conn.Write(bds)
+		err = TcpWrite(context.Background(), c.conn, bds)
 		if err != nil {
 			return err
 		}

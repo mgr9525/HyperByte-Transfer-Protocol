@@ -89,18 +89,11 @@ func (c *Request) SetArg(k, v string) *Request {
 	c.args.Set(k, v)
 	return c
 }
-func (c *Request) write(bts []byte) (int, error) {
+func (c *Request) write(bts []byte) error {
 	if c.ctx == nil || c.conn == nil {
-		return 0, errors.New("do is call?")
+		return errors.New("do is call?")
 	}
-	n, err := c.conn.Write(bts)
-	if err != nil {
-		return 0, err
-	}
-	if EndContext(c.ctx) {
-		return 0, errors.New("ctx is end")
-	}
-	return n, nil
+	return TcpWrite(c.ctx, c.conn, bts)
 }
 func (c *Request) send(bds []byte, hds ...interface{}) error {
 	if c.sended {
@@ -155,30 +148,30 @@ func (c *Request) send(bds []byte, hds ...interface{}) error {
 		return err
 	}
 	c.sended = true
-	_, err = c.write(bts)
+	err = c.write(bts)
 	if err != nil {
 		return err
 	}
 	if info.LenCmd > 0 {
-		_, err = c.write([]byte(c.cmd))
+		err = c.write([]byte(c.cmd))
 		if err != nil {
 			return err
 		}
 	}
 	if info.LenArg > 0 {
-		_, err = c.write([]byte(args))
+		err = c.write([]byte(args))
 		if err != nil {
 			return err
 		}
 	}
 	if info.LenHead > 0 {
-		_, err = c.write(hd)
+		err = c.write(hd)
 		if err != nil {
 			return err
 		}
 	}
 	if info.LenBody > 0 {
-		_, err = c.write(bds)
+		err = c.write(bds)
 		if err != nil {
 			return err
 		}

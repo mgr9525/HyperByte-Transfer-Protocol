@@ -41,7 +41,7 @@ func TestRequest(t *testing.T) {
 		println("NewRequest err:", err.Error())
 		return
 	}
-	println("req code:", res.Code())
+	println(fmt.Sprintf("req code:%d,head:%d,body:%d", res.Code(), len(res.HeadBytes()), len(res.BodyBytes())))
 	hdr, err := res.Header()
 	if err == nil {
 		cookie := hdr.GetString("cookie")
@@ -132,4 +132,24 @@ func TestRPCReqs(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
+}
+
+func TestRequests(t *testing.T) {
+	req := NewRequest("yldown.jazpan.com:7080", 1).Command("VideoSource")
+	//req := NewRequest("localhost:7080", 1).Command("VideoSource")
+	defer req.Close()
+	req.SetArg("hehe1", "asdfs23423")
+	//req.ReqHeader().Set("host", "test.host.com")
+	res, err := req.Do(nil, []byte("http://v.youku.com/v_show/id_XNDc4Mzc3NTYw.html"))
+	if err != nil {
+		println("NewRequest err:", err.Error())
+		return
+	}
+	println(fmt.Sprintf("req code:%d,head:%d,body:%d", res.Code(), len(res.HeadBytes()), len(res.BodyBytes())))
+	hdr, err := res.Header()
+	if err == nil {
+		cookie := hdr.GetString("cookie")
+		println("req cookie:", cookie)
+	}
+	println("req body:", string(res.BodyBytes()))
 }

@@ -70,12 +70,11 @@ func TcpRead(ctx context.Context, conn net.Conn, ln uint) ([]byte, error) {
 	if conn == nil || ln <= 0 {
 		return nil, errors.New("handleRead ln<0")
 	}
-	var buf *bytes.Buffer
+	buf := &bytes.Buffer{}
 	rn := uint(0)
 	tn := ln
 	if ln > 10240 {
 		tn = 10240
-		buf = &bytes.Buffer{}
 	}
 	bts := make([]byte, tn)
 	for {
@@ -84,10 +83,9 @@ func TcpRead(ctx context.Context, conn net.Conn, ln uint) ([]byte, error) {
 		}
 		n, err := conn.Read(bts)
 		if n > 0 {
+			//println("test read:", string(bts[:n]))
 			rn += uint(n)
-			if buf != nil {
-				buf.Write(bts[:n])
-			}
+			buf.Write(bts[:n])
 		}
 		if rn >= ln {
 			break
@@ -99,10 +97,7 @@ func TcpRead(ctx context.Context, conn net.Conn, ln uint) ([]byte, error) {
 			return nil, errors.New("conn abort")
 		}
 	}
-	if buf != nil {
-		return buf.Bytes(), nil
-	}
-	return bts, nil
+	return buf.Bytes(), nil
 }
 func TcpWrite(ctx context.Context, conn net.Conn, bts []byte) error {
 	ln := len(bts)

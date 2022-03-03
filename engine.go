@@ -17,21 +17,38 @@ type Engine struct {
 
 	fnlk  sync.Mutex
 	fns   map[int32][]ConnFun
+	lmts  map[int32]*LmtMaxConfig
 	notfn ConnFun
 
-	conf Config
+	lmtTm  *LmtTmConfig
+	lmtMax *LmtMaxConfig
 }
 
 func NewEngine(ctx context.Context) *Engine {
 	c := &Engine{
-		fns:  make(map[int32][]ConnFun),
-		conf: MakeConfig(),
+		fns:    make(map[int32][]ConnFun),
+		lmts:   make(map[int32]*LmtMaxConfig),
+		lmtTm:  MakeLmtTmCfg(),
+		lmtMax: MakeLmtMaxCfg(),
 	}
 	c.ctx, c.cncl = context.WithCancel(ctx)
 	return c
 }
-func (c *Engine) Config(conf Config) {
-	c.conf = conf
+func (c *Engine) SetLmtTm(lmt *LmtTmConfig) {
+	c.lmtTm = lmt
+}
+func (c *Engine) SetlmtMax(lmt *LmtMaxConfig) {
+	c.lmtMax = lmt
+}
+func (c *Engine) GetLmtTm() *LmtTmConfig {
+	return c.lmtTm
+}
+func (c *Engine) GetlmtMax(k int32) *LmtMaxConfig {
+	rt, ok := c.lmts[k]
+	if ok {
+		return rt
+	}
+	return c.lmtMax
 }
 func (c *Engine) NotFoundFun(fn ConnFun) {
 	c.notfn = fn
@@ -86,7 +103,7 @@ func (c *Engine) handleConn(conn net.Conn) {
 		}
 	}()
 
-	res, err := ParseContext(c.ctx, conn, c.conf)
+	res, err := ParseContext(c.ctx, conn, c)
 	if err != nil {
 		Debugf("Engine handleConn ParseContext err:%+v", err)
 		return
@@ -124,7 +141,7 @@ func (c *Engine) recoverCallMapfn(res *Context) {
 	}
 }
 
-func (c *Engine) RegFun(control int32, fn ConnFun) bool {
+func (c *Engine) RegFun(control int32, fn ConnFun, lmtMax ...*LmtMaxConfig) bool {
 	c.fnlk.Lock()
 	defer c.fnlk.Unlock()
 	_, ok := c.fns[control]
@@ -135,11 +152,14 @@ func (c *Engine) RegFun(control int32, fn ConnFun) bool {
 	fns := c.fns[control]
 	fns = append(fns, fn)
 	c.fns[control] = fns
+	if len(lmtMax) > 0 {
+		c.lmts[control] = lmtMax[0]
+	}
 	return true
 }
-func (c *Engine) RegParamFun(control int32, fn interface{}) bool {
-	return c.RegFun(control, ParamFunHandle(fn))
+func (c *Engine) RegParamFun(control int32, fn interface{}, lmtMax ...*LmtMaxConfig) bool {
+	return c.RegFun(control, ParamFunHandle(fn), lmtMax...)
 }
-func (c *Engine) RegGrpcFun(control int32, rpc IRPCRoute) bool {
-	return c.RegFun(control, GrpcFunHandle(rpc))
+func (c *Engine) RegGrpcFun(control int32, rpc IRPCRoute, lmtMax ...*LmtMaxConfig) bool {
+	return c.RegFun(control, GrpcFunHandle(rpc), lmtMax...)
 }

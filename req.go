@@ -10,7 +10,6 @@ import (
 )
 
 type Request struct {
-	conf    Config
 	addr    string
 	timeout time.Duration
 	conn    net.Conn
@@ -19,8 +18,9 @@ type Request struct {
 	cmd     string
 	args    url.Values
 
-	ctx  context.Context
-	cncl context.CancelFunc
+	ctx   context.Context
+	cncl  context.CancelFunc
+	lmtTm *LmtTmConfig
 
 	header *Map
 }
@@ -38,10 +38,10 @@ func NewRequest(addr string, control int32, timeout ...time.Duration) *Request {
 		tmo = timeout[0]
 	}
 	cli := &Request{
-		conf:    MakeConfig(),
 		addr:    addr,
 		timeout: tmo,
 		control: control,
+		lmtTm:   MakeLmtTmCfg(),
 	}
 	return cli
 }
@@ -51,16 +51,15 @@ func NewConnRequest(conn net.Conn, control int32, timeout ...time.Duration) *Req
 		tmo = timeout[0]
 	}
 	cli := &Request{
-		conf:    MakeConfig(),
 		conn:    conn,
 		timeout: tmo,
 		control: control,
+		lmtTm:   MakeLmtTmCfg(),
 	}
 	return cli
 }
-func (c *Request) Config(conf Config) *Request {
-	c.conf = conf
-	return c
+func (c *Request) SetLmtTm(lmt *LmtTmConfig) {
+	c.lmtTm = lmt
 }
 func (c *Request) SetContext(ctx context.Context) *Request {
 	if ctx == nil {
@@ -104,7 +103,7 @@ func (c *Request) send(bds []byte, hds ...interface{}) error {
 		if c.addr == "" {
 			return errors.New("addr is empty")
 		}
-		c.conn, err = net.DialTimeout("tcp", c.addr, c.conf.TmsInfo)
+		c.conn, err = net.DialTimeout("tcp", c.addr, c.lmtTm.TmOhther)
 		if err != nil {
 			return err
 		}
@@ -187,7 +186,8 @@ func (c *Request) Res() (*Response, error) {
 	}
 	info := &resInfoV1{}
 	infoln := FlcStructSizeof(info)
-	bts, err := TcpRead(c.ctx, c.conn, uint(infoln))
+	ctx, _ := context.WithTimeout(c.ctx, c.lmtTm.TmOhther)
+	bts, err := TcpRead(ctx, c.conn, uint(infoln))
 	if err != nil {
 		return nil, err
 	}
@@ -203,13 +203,15 @@ func (c *Request) Res() (*Response, error) {
 	}
 	rt := &Response{code: info.Code}
 	if info.LenHead > 0 {
-		rt.heads, err = TcpRead(c.ctx, c.conn, uint(info.LenHead))
+		ctx, _ = context.WithTimeout(c.ctx, c.lmtTm.TmHeads)
+		rt.heads, err = TcpRead(ctx, c.conn, uint(info.LenHead))
 		if err != nil {
 			return nil, err
 		}
 	}
 	if info.LenBody > 0 {
-		rt.bodys, err = TcpRead(c.ctx, c.conn, uint(info.LenBody))
+		ctx, _ = context.WithTimeout(c.ctx, c.lmtTm.TmBodys)
+		rt.bodys, err = TcpRead(ctx, c.conn, uint(info.LenBody))
 		if err != nil {
 			return nil, err
 		}

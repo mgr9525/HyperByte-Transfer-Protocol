@@ -143,10 +143,11 @@ func (c *Context) GetData(k string) (interface{}, bool) {
 	return c.data.Get(k)
 }
 
-func ParseContext(ctx context.Context, conn net.Conn, cfg Config) (*Context, error) {
+func ParseContext(ctx context.Context, conn net.Conn, egn *Engine) (*Context, error) {
 	info := &msgInfo{}
 	infoln := FlcStructSizeof(info)
-	ctx, _ = context.WithTimeout(ctx, cfg.TmsInfo)
+	lmtm := egn.GetLmtTm()
+	ctx, _ = context.WithTimeout(ctx, lmtm.TmOhther)
 	bts, err := TcpRead(ctx, conn, uint(infoln))
 	if err != nil {
 		return nil, err
@@ -158,20 +159,21 @@ func ParseContext(ctx context.Context, conn net.Conn, cfg Config) (*Context, err
 	if info.Version != 1 {
 		return nil, errors.New("not found version")
 	}
-	if uint64(info.LenCmd+info.LenArg) > MaxOther {
+	lmtx := egn.GetlmtMax(info.Control)
+	if uint64(info.LenCmd+info.LenArg) > lmtx.MaxOhther {
 		return nil, errors.New("bytes1 out limit!!")
 	}
-	if uint64(info.LenHead) > MaxHeads {
+	if uint64(info.LenHead) > lmtx.MaxHeads {
 		return nil, errors.New("bytes2 out limit!!")
 	}
-	if uint64(info.LenBody) > MaxBodys {
+	if uint64(info.LenBody) > lmtx.MaxBodys {
 		return nil, errors.New("bytes3 out limit!!")
 	}
 	rt := &Context{
 		conn:    conn,
 		control: info.Control,
 	}
-	ctx, _ = context.WithTimeout(ctx, cfg.TmsHead)
+	ctx, _ = context.WithTimeout(ctx, lmtm.TmHeads)
 	if info.LenCmd > 0 {
 		bts, err = TcpRead(ctx, conn, uint(info.LenCmd))
 		if err != nil {
@@ -196,7 +198,7 @@ func ParseContext(ctx context.Context, conn net.Conn, cfg Config) (*Context, err
 		}
 	}
 
-	ctx, _ = context.WithTimeout(ctx, cfg.TmsBody)
+	ctx, _ = context.WithTimeout(ctx, lmtm.TmBodys)
 	if info.LenBody > 0 {
 		rt.bds, err = TcpRead(ctx, conn, uint(info.LenBody))
 		if err != nil {

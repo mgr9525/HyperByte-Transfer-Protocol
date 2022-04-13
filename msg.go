@@ -3,6 +3,7 @@ package hbtp
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"time"
 )
@@ -76,7 +77,7 @@ func (c *Messager) Run(servs bool) {
 func (c *Messager) runRecv() {
 	defer func() {
 		if err := recover(); err != nil {
-			println("Messager.runRecv recover:%v", err)
+			println(fmt.Sprintf("Messager.runRecv recover:%v", err))
 		}
 	}()
 	msg, err := parseMessage(c.ctx, c.conn)
@@ -110,7 +111,7 @@ func (c *Messager) runRecv() {
 func (c *Messager) runSend() {
 	defer func() {
 		if err := recover(); err != nil {
-			println("Messager.runSend recover:%v", err)
+			println(fmt.Sprintf("Messager.runSend recover:%v", err))
 		}
 	}()
 
@@ -124,7 +125,7 @@ func (c *Messager) runSend() {
 func (c *Messager) runCheck() {
 	defer func() {
 		if err := recover(); err != nil {
-			println("Messager.runCheck recover:%v", err)
+			println(fmt.Sprintf("Messager.runCheck recover:%v", err))
 		}
 	}()
 

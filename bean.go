@@ -13,3 +13,11 @@ type resInfoV1 struct {
 	LenHead uint32
 	LenBody uint32
 }
+
+type msgsInfo struct {
+	Version uint16
+	Control int32
+	LenCmd  uint16
+	LenHead uint32
+	LenBody uint32
+}

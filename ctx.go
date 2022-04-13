@@ -147,8 +147,8 @@ func ParseContext(ctx context.Context, conn net.Conn, egn *Engine) (*Context, er
 	info := &msgInfo{}
 	infoln := FlcStructSizeof(info)
 	lmtm := egn.GetLmtTm()
-	ctx, _ = context.WithTimeout(ctx, lmtm.TmOhther)
-	bts, err := TcpRead(ctx, conn, uint(infoln))
+	ctxs, _ := context.WithTimeout(ctx, lmtm.TmOhther)
+	bts, err := TcpRead(ctxs, conn, uint(infoln))
 	if err != nil {
 		return nil, err
 	}
@@ -173,16 +173,16 @@ func ParseContext(ctx context.Context, conn net.Conn, egn *Engine) (*Context, er
 		conn:    conn,
 		control: info.Control,
 	}
-	ctx, _ = context.WithTimeout(ctx, lmtm.TmHeads)
+	ctxs, _ = context.WithTimeout(ctx, lmtm.TmHeads)
 	if info.LenCmd > 0 {
-		bts, err = TcpRead(ctx, conn, uint(info.LenCmd))
+		bts, err = TcpRead(ctxs, conn, uint(info.LenCmd))
 		if err != nil {
 			return nil, err
 		}
 		rt.cmd = string(bts)
 	}
 	if info.LenArg > 0 {
-		bts, err = TcpRead(ctx, conn, uint(info.LenArg))
+		bts, err = TcpRead(ctxs, conn, uint(info.LenArg))
 		if err != nil {
 			return nil, err
 		}
@@ -192,15 +192,15 @@ func ParseContext(ctx context.Context, conn net.Conn, egn *Engine) (*Context, er
 		}
 	}
 	if info.LenHead > 0 {
-		rt.hds, err = TcpRead(ctx, conn, uint(info.LenHead))
+		rt.hds, err = TcpRead(ctxs, conn, uint(info.LenHead))
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	ctx, _ = context.WithTimeout(ctx, lmtm.TmBodys)
+	ctxs, _ = context.WithTimeout(ctx, lmtm.TmBodys)
 	if info.LenBody > 0 {
-		rt.bds, err = TcpRead(ctx, conn, uint(info.LenBody))
+		rt.bds, err = TcpRead(ctxs, conn, uint(info.LenBody))
 		if err != nil {
 			return nil, err
 		}

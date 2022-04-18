@@ -142,12 +142,17 @@ func (c *Messager) runCheck() {
 			Heads:   nil,
 			Bodys:   nil,
 		}
-		c.Send(msgs)
+		go c.Send(msgs)
 	}
 
 	c.rcver.OnCheck()
 }
 func (c *Messager) Send(m *Messages) {
+	defer func() {
+		if err := recover(); err != nil {
+			println(fmt.Sprintf("Messager.Send recover:%v", err))
+		}
+	}()
 	if !c.shuted {
 		c.pipes <- m
 	}

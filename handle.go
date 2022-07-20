@@ -66,10 +66,8 @@ func ParamFunHandle(fn interface{}, authfn ...AuthFun) ConnFun {
 	}
 	fnt := fnv.Type()
 	return func(c *Context) {
-		if len(authfn) > 0 {
-			if !authfn[0](c) {
-				return
-			}
+		if len(authfn) > 0 && !authfn[0](c) {
+			return
 		}
 		inls, err := appendParams(nil, c, fnt)
 		if err != nil {
@@ -111,8 +109,35 @@ func GrpcFunHandle(t IRPCRoute) ConnFun {
 				return
 			}
 		}
-
 		c.ResString(ResStatusNotFound, "not found method:"+c.Command())
-		return
+	}
+}
+
+func MapFunHandle(fns map[string]interface{}, authfn ...AuthFun) ConnFun {
+	if fns == nil || len(fns) <= 0 {
+		return nil
+	}
+	return func(c *Context) {
+		if len(authfn) > 0 && !authfn[0](c) {
+			return
+		}
+
+		fn, ok := fns[c.Command()]
+		if !ok || fn == nil {
+			c.ResString(ResStatusNotFound, "not found method:"+c.Command())
+			return
+		}
+		fnv := reflect.ValueOf(fn)
+		if fnv.Kind() != reflect.Func {
+			c.ResString(ResStatusNotFound, "not found method:"+c.Command())
+			return
+		}
+		fnt := fnv.Type()
+		inls, err := appendParams(nil, c, fnt)
+		if err != nil {
+			c.ResString(ResStatusErr, fmt.Sprintf("appendParams err:%+v", err))
+			return
+		}
+		fnv.Call(inls)
 	}
 }

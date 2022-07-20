@@ -61,12 +61,13 @@ func (c *Context) Args() url.Values {
 func (c *Context) HeadBytes() []byte {
 	return c.hds
 }
-func (c *Context) BodyBytes(ctx context.Context) []byte {
+func (c *Context) BodyBytes(ctxs ...context.Context) []byte {
 	c.bdok.Lock()
 	defer c.bdok.Unlock()
 	if c.bds == nil && c.bdln > 0 {
-		if ctx == nil {
-			ctx = context.Background()
+		ctx := context.Background()
+		if len(ctxs) > 0 && ctxs[0] != nil {
+			ctx = ctxs[0]
 		}
 		bds, err := TcpRead(ctx, c.conn, uint(c.bdln))
 		if err != nil {

@@ -37,12 +37,13 @@ func (c *Response) Code() int32 {
 func (c *Response) HeadBytes() []byte {
 	return c.heads
 }
-func (c *Response) BodyBytes(ctx context.Context) []byte {
+func (c *Response) BodyBytes(ctxs ...context.Context) []byte {
 	c.bdok.Lock()
 	defer c.bdok.Unlock()
 	if c.bodys == nil && c.bdln > 0 {
-		if ctx == nil {
-			ctx = context.Background()
+		ctx := context.Background()
+		if len(ctxs) > 0 && ctxs[0] != nil {
+			ctx = ctxs[0]
 		}
 		bds, err := TcpRead(ctx, c.conn, uint(c.bdln))
 		if err != nil {

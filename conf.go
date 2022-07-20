@@ -2,9 +2,8 @@ package hbtp
 
 import "time"
 
-const MaxOther uint64 = 1024 * 1024 * 20   //20M
-const MaxHeads uint64 = 1024 * 1024 * 100  //100M
-const MaxBodys uint64 = 1024 * 1024 * 1024 //1G
+const MaxOther uint64 = 1024 * 1024 * 20  //20M
+const MaxHeads uint64 = 1024 * 1024 * 100 //100M
 
 type LmtTmConfig struct {
 	TmOhther time.Duration
@@ -14,7 +13,6 @@ type LmtTmConfig struct {
 type LmtMaxConfig struct {
 	MaxOhther uint64
 	MaxHeads  uint64
-	MaxBodys  uint64
 }
 
 func MakeLmtTmCfg() *LmtTmConfig {
@@ -28,6 +26,5 @@ func MakeLmtMaxCfg() *LmtMaxConfig {
 	return &LmtMaxConfig{
 		MaxOhther: 1024 * 1024 * 2,  //2M
 		MaxHeads:  1024 * 1024 * 10, //10M
-		MaxBodys:  1024 * 1024 * 50, //50M
 	}
 }

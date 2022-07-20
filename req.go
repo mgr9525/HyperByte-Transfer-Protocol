@@ -198,10 +198,7 @@ func (c *Request) Res() (*Response, error) {
 	if uint64(info.LenHead) > MaxHeads {
 		return nil, errors.New("bytes2 out limit!!")
 	}
-	if uint64(info.LenBody) > MaxBodys {
-		return nil, errors.New("bytes3 out limit!!")
-	}
-	rt := &Response{code: info.Code}
+	rt := &Response{conn: c.conn, code: info.Code}
 	if info.LenHead > 0 {
 		ctx, _ = context.WithTimeout(c.ctx, c.lmtTm.TmHeads)
 		rt.heads, err = TcpRead(ctx, c.conn, uint(info.LenHead))
@@ -209,13 +206,13 @@ func (c *Request) Res() (*Response, error) {
 			return nil, err
 		}
 	}
-	if info.LenBody > 0 {
+	/* if info.LenBody > 0 {
 		ctx, _ = context.WithTimeout(c.ctx, c.lmtTm.TmBodys)
 		rt.bodys, err = TcpRead(ctx, c.conn, uint(info.LenBody))
 		if err != nil {
 			return nil, err
 		}
-	}
+	} */
 	return rt, nil
 }
 func (c *Request) DoNoRes(ctx context.Context, body interface{}, hds ...interface{}) error {

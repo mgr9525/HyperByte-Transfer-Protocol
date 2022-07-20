@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"sync"
 )
 
 type Context struct {
@@ -17,6 +18,8 @@ type Context struct {
 	args    url.Values
 	hds     []byte
 	bds     []byte
+	bdok    sync.Mutex
+	bdln    uint32
 
 	hdrq *Map
 	hdrs *Map
@@ -58,7 +61,20 @@ func (c *Context) Args() url.Values {
 func (c *Context) HeadBytes() []byte {
 	return c.hds
 }
-func (c *Context) BodyBytes() []byte {
+func (c *Context) BodyBytes(ctx context.Context) []byte {
+	c.bdok.Lock()
+	defer c.bdok.Unlock()
+	if c.bds == nil && c.bdln > 0 {
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		bds, err := TcpRead(ctx, c.conn, uint(c.bdln))
+		if err != nil {
+			println("get_bodys tcp read err:" + err.Error())
+		} else {
+			c.bds = bds
+		}
+	}
 	return c.bds
 }
 
@@ -166,12 +182,10 @@ func ParseContext(ctx context.Context, conn net.Conn, egn *Engine) (*Context, er
 	if uint64(info.LenHead) > lmtx.MaxHeads {
 		return nil, errors.New("bytes2 out limit!!")
 	}
-	if uint64(info.LenBody) > lmtx.MaxBodys {
-		return nil, errors.New("bytes3 out limit!!")
-	}
 	rt := &Context{
 		conn:    conn,
 		control: info.Control,
+		bdln:    info.LenBody,
 	}
 	ctxs, _ = context.WithTimeout(ctx, lmtm.TmHeads)
 	if info.LenCmd > 0 {
@@ -198,12 +212,12 @@ func ParseContext(ctx context.Context, conn net.Conn, egn *Engine) (*Context, er
 		}
 	}
 
-	ctxs, _ = context.WithTimeout(ctx, lmtm.TmBodys)
+	/* ctxs, _ = context.WithTimeout(ctx, lmtm.TmBodys)
 	if info.LenBody > 0 {
 		rt.bds, err = TcpRead(ctxs, conn, uint(info.LenBody))
 		if err != nil {
 			return nil, err
 		}
-	}
+	} */
 	return rt, nil
 }

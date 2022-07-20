@@ -1,14 +1,20 @@
 package hbtp
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"net"
+	"sync"
 )
 
 type Response struct {
+	conn   net.Conn
 	code   int32
 	heads  []byte
 	bodys  []byte
+	bdok   sync.Mutex
+	bdln   uint32
 	header *Map
 }
 
@@ -31,12 +37,26 @@ func (c *Response) Code() int32 {
 func (c *Response) HeadBytes() []byte {
 	return c.heads
 }
-func (c *Response) BodyBytes() []byte {
+func (c *Response) BodyBytes(ctx context.Context) []byte {
+	c.bdok.Lock()
+	defer c.bdok.Unlock()
+	if c.bodys == nil && c.bdln > 0 {
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		bds, err := TcpRead(ctx, c.conn, uint(c.bdln))
+		if err != nil {
+			println("get_bodys tcp read err:" + err.Error())
+		} else {
+			c.bodys = bds
+		}
+	}
 	return c.bodys
 }
 func (c *Response) BodyJson(bd interface{}) error {
-	if c.bodys == nil {
+	bds := c.BodyBytes(nil)
+	if bds == nil {
 		return errors.New("is do?")
 	}
-	return json.Unmarshal(c.bodys, bd)
+	return json.Unmarshal(bds, bd)
 }

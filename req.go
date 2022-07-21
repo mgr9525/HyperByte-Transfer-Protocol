@@ -177,7 +177,12 @@ func (c *Request) send(bds []byte, hds ...interface{}) error {
 	}
 	return nil
 }
-func (c *Request) Res() (*Response, error) {
+func (c *Request) Res() (res *Response, rterr error) {
+	defer func() {
+		if rterr != nil && c.conn != nil {
+			c.conn.Close()
+		}
+	}()
 	if !c.sended {
 		return nil, errors.New("not send")
 	}
@@ -215,7 +220,12 @@ func (c *Request) Res() (*Response, error) {
 	} */
 	return rt, nil
 }
-func (c *Request) DoNoRes(ctx context.Context, body interface{}, hds ...interface{}) error {
+func (c *Request) DoNoRes(ctx context.Context, body interface{}, hds ...interface{}) (rterr error) {
+	defer func() {
+		if rterr != nil && c.conn != nil {
+			c.conn.Close()
+		}
+	}()
 	c.ctx = ctx
 	var err error
 	var bdbts []byte
@@ -234,30 +244,19 @@ func (c *Request) DoNoRes(ctx context.Context, body interface{}, hds ...interfac
 	}
 	return c.send(bdbts, hds...)
 }
-func (c *Request) Do(ctx context.Context, body interface{}, hds ...interface{}) (*Response, error) {
+func (c *Request) Do(ctx context.Context, body interface{}, hds ...interface{}) (res *Response, rterr error) {
+	defer func() {
+		if rterr != nil && c.conn != nil {
+			c.conn.Close()
+		}
+	}()
 	err := c.DoNoRes(ctx, body, hds...)
 	if err != nil {
 		return nil, err
 	}
 	return c.Res()
 }
-
-/*
-	if ownership is `true`,the conn is never close!
-	so you need close manual.
-*/
-func (c *Request) Conn(ownership ...bool) net.Conn {
-	defer func() {
-		if len(ownership) > 0 && ownership[0] {
-			c.conn = nil
-		}
-	}()
-	return c.conn
-}
-func (c *Request) Close() error {
-	if c.conn != nil {
-		return c.conn.Close()
-	}
+func (c *Request) Cancel() error {
 	if c.cncl != nil {
 		c.cncl()
 		c.cncl = nil

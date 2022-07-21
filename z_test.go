@@ -32,7 +32,6 @@ func helloWorldFun(c *Context) {
 
 func TestRequest(t *testing.T) {
 	req := NewRequest("localhost:7030", 1).Command("/hello/test")
-	defer req.Close()
 	req.Command("123")
 	req.SetArg("hehe1", "asdfs23423")
 	//req.ReqHeader().Set("host", "test.host.com")
@@ -41,6 +40,7 @@ func TestRequest(t *testing.T) {
 		println("NewRequest err:", err.Error())
 		return
 	}
+	defer res.Close()
 	println(fmt.Sprintf("req code:%d,head:%d,body:%d", res.Code(), len(res.HeadBytes()), len(res.BodyBytes())))
 	hdr, err := res.Header()
 	if err == nil {
@@ -78,12 +78,12 @@ func (e *testFuns) Runs(c *Context, body string) {
 func TestRPCReq(t *testing.T) {
 	req := NewRequest("localhost:7030", 2).
 		Command("GetName1").SetArg("token", "123456")
-	defer req.Close()
 	res, err := req.Do(nil, []byte("hello world"))
 	if err != nil {
 		println("NewRequest err:", err.Error())
 		return
 	}
+	defer res.Close()
 	println("GetName1 res code:", res.Code())
 	hdr, err := res.Header()
 	if err == nil {
@@ -94,12 +94,12 @@ func TestRPCReq(t *testing.T) {
 
 	req = NewRequest("localhost:7030", 2).
 		Command("GetName2").SetArg("token", "1234567")
-	defer req.Close()
 	res, err = req.Do(nil, []byte("hello world"))
 	if err != nil {
 		println("NewRequest err:", err.Error())
 		return
 	}
+	defer res.Close()
 	println("GetName2 res code:", res.Code())
 	hdr, err = res.Header()
 	if err == nil {
@@ -113,11 +113,11 @@ func testRPCs(in int) {
 	req := NewRequest("localhost:7030", 2).
 		Command("Runs").SetArg("token", "123456")
 	res, err := req.Do(nil, fmt.Sprintf("%d", in))
-	defer req.Close()
 	if err != nil {
 		println("NewRequest err:", err.Error())
 		return
 	}
+	defer res.Close()
 	fmt.Println(fmt.Sprintf("Runs res(%d) body:%s", res.Code(), string(res.BodyBytes())))
 }
 func TestRPCReqs(t *testing.T) {
@@ -137,7 +137,6 @@ func TestRPCReqs(t *testing.T) {
 func TestRequests(t *testing.T) {
 	req := NewRequest("yldown.jazpan.com:7080", 1).Command("VideoSource")
 	//req := NewRequest("localhost:7080", 1).Command("VideoSource")
-	defer req.Close()
 	req.SetArg("hehe1", "asdfs23423")
 	//req.ReqHeader().Set("host", "test.host.com")
 	res, err := req.Do(nil, []byte("http://v.youku.com/v_show/id_XNDc4Mzc3NTYw.html"))
@@ -145,6 +144,7 @@ func TestRequests(t *testing.T) {
 		println("NewRequest err:", err.Error())
 		return
 	}
+	defer res.Close()
 	println(fmt.Sprintf("req code:%d,head:%d,body:%d", res.Code(), len(res.HeadBytes()), len(res.BodyBytes())))
 	hdr, err := res.Header()
 	if err == nil {

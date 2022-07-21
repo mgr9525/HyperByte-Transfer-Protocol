@@ -61,3 +61,23 @@ func (c *Response) BodyJson(bd interface{}) error {
 	}
 	return json.Unmarshal(bds, bd)
 }
+
+/*
+	if ownership is `true`,the conn is never close!
+	so you need close manual.
+*/
+func (c *Response) Conn(ownership ...bool) net.Conn {
+	defer func() {
+		if len(ownership) > 0 && ownership[0] {
+			c.BodyBytes()
+			c.conn = nil
+		}
+	}()
+	return c.conn
+}
+func (c *Response) Close() error {
+	if c.conn != nil {
+		return c.conn.Close()
+	}
+	return nil
+}

@@ -32,6 +32,7 @@ func (c *Context) Sended() bool {
 func (c *Context) Conn(ownership ...bool) net.Conn {
 	defer func() {
 		if len(ownership) > 0 && ownership[0] {
+			c.BodyBytes()
 			c.conn = nil
 		}
 	}()

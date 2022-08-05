@@ -203,7 +203,11 @@ func (c *Request) Res() (res *Response, rterr error) {
 	if uint64(info.LenHead) > MaxHeads {
 		return nil, errors.New("bytes2 out limit!!")
 	}
-	rt := &Response{conn: c.conn, code: info.Code}
+	rt := &Response{
+		conn: c.conn,
+		code: info.Code,
+		bdln: info.LenBody,
+	}
 	if info.LenHead > 0 {
 		ctx, _ = context.WithTimeout(c.ctx, c.lmtTm.TmHeads)
 		rt.heads, err = TcpRead(ctx, c.conn, uint(info.LenHead))

@@ -110,7 +110,7 @@ func (c *Engine) handleConn(conn net.Conn) {
 		return
 	}
 	c.recoverCallMapfn(res)
-	if res.conn != nil {
+	if !res.taked && res.conn != nil {
 		res.conn.Close()
 	}
 }

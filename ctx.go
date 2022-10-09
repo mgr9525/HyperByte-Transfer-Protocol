@@ -14,6 +14,7 @@ import (
 type Context struct {
 	sended  bool
 	conn    net.Conn
+	taked   bool
 	control int32
 	cmd     string
 	args    url.Values
@@ -34,7 +35,8 @@ func (c *Context) Conn(ownership ...bool) net.Conn {
 	defer func() {
 		if len(ownership) > 0 && ownership[0] {
 			c.BodyBytes()
-			c.conn = nil
+			c.taked = true
+			// c.conn = nil
 		}
 	}()
 	return c.conn

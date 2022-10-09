@@ -151,6 +151,10 @@ func (c *Request) send(bds []byte, hds ...interface{}) error {
 	if err != nil {
 		return err
 	}
+	/* err = c.write([]byte{0x48, 0x42, 0x54, 0x50})
+	if err != nil {
+		return err
+	} */
 	if info.LenCmd > 0 {
 		err = c.write([]byte(c.cmd))
 		if err != nil {

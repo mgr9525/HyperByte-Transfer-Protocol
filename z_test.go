@@ -76,7 +76,7 @@ func (e *testFuns) Runs(c *Context, body string) {
 	c.ResString(ResStatusOk, "ok")
 }
 func TestRPCReq(t *testing.T) {
-	req := NewRequest("localhost:7030", 2).
+	req := NewRequest("localhost:6573", 2).
 		Command("GetName1").SetArg("token", "123456")
 	res, err := req.Do(nil, []byte("hello world"))
 	if err != nil {

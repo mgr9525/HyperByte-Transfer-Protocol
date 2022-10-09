@@ -1,6 +1,7 @@
 package hbtp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -174,7 +175,7 @@ func ParseContext(ctx context.Context, conn net.Conn, egn *Engine) (*Context, er
 	if err != nil {
 		return nil, err
 	}
-	if info.Version != 1 {
+	if info.Version != 1 && info.Version != 2 {
 		return nil, errors.New("not found version")
 	}
 	lmtx := egn.GetlmtMax(info.Control)
@@ -183,6 +184,15 @@ func ParseContext(ctx context.Context, conn net.Conn, egn *Engine) (*Context, er
 	}
 	if uint64(info.LenHead) > lmtx.MaxHeads {
 		return nil, errors.New("bytes2 out limit!!")
+	}
+	if info.Version == 2 {
+		bts, err := TcpRead(ctxs, conn, 4)
+		if err != nil {
+			return nil, err
+		}
+		if !bytes.Equal(bts, []byte{0x48, 0x42, 0x54, 0x50}) {
+			return nil, errors.New("HBTP fmt err!!")
+		}
 	}
 	rt := &Context{
 		conn:    conn,

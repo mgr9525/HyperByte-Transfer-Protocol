@@ -106,6 +106,7 @@ func (c *Engine) handleConn(conn net.Conn) {
 	res, err := ParseContext(c.ctx, conn, c)
 	if err != nil {
 		Debugf("Engine handleConn ParseContext err:%+v", err)
+		conn.Close()
 		return
 	}
 	c.recoverCallMapfn(res)

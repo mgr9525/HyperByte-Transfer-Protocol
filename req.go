@@ -140,12 +140,15 @@ func (c *Request) send(bds []byte, hds ...interface{}) error {
 		args = c.args.Encode()
 	}
 	info := &msgInfo{
-		Version: uint16(c.useVersion),
+		Version: 1,
 		Control: c.control,
 		LenCmd:  uint16(len(c.cmd)),
 		LenArg:  uint16(len(args)),
 		LenHead: uint32(len(hd)),
 		LenBody: uint32(len(bds)),
+	}
+	if c.useVersion > 0 {
+		info.Version = uint16(c.useVersion)
 	}
 	bts, err := FlcStruct2Byte(info)
 	if err != nil {

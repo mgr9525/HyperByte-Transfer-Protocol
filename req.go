@@ -23,6 +23,8 @@ type Request struct {
 	lmtTm *LmtTmConfig
 
 	header *Map
+
+	useVersion int
 }
 
 func (c *Request) Header() *Map {
@@ -57,6 +59,9 @@ func NewConnRequest(conn net.Conn, control int32, timeout ...time.Duration) *Req
 		lmtTm:   MakeLmtTmCfg(),
 	}
 	return cli
+}
+func (c *Request) SetVersion(v int) {
+	c.useVersion = v
 }
 func (c *Request) SetLmtTm(lmt *LmtTmConfig) {
 	c.lmtTm = lmt
@@ -135,7 +140,7 @@ func (c *Request) send(bds []byte, hds ...interface{}) error {
 		args = c.args.Encode()
 	}
 	info := &msgInfo{
-		Version: 1,
+		Version: uint16(c.useVersion),
 		Control: c.control,
 		LenCmd:  uint16(len(c.cmd)),
 		LenArg:  uint16(len(args)),
@@ -151,10 +156,12 @@ func (c *Request) send(bds []byte, hds ...interface{}) error {
 	if err != nil {
 		return err
 	}
-	/* err = c.write([]byte{0x48, 0x42, 0x54, 0x50})
-	if err != nil {
-		return err
-	} */
+	if info.Version >= 2 {
+		err = c.write([]byte{0x48, 0x42, 0x54, 0x50})
+		if err != nil {
+			return err
+		}
+	}
 	if info.LenCmd > 0 {
 		err = c.write([]byte(c.cmd))
 		if err != nil {

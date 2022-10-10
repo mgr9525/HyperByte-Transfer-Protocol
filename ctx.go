@@ -187,7 +187,7 @@ func ParseContext(ctx context.Context, conn net.Conn, egn *Engine) (*Context, er
 	if uint64(info.LenHead) > lmtx.MaxHeads {
 		return nil, errors.New("bytes2 out limit!!")
 	}
-	if info.Version == 2 {
+	if info.Version >= 2 {
 		bts, err := TcpRead(ctxs, conn, 4)
 		if err != nil {
 			return nil, err

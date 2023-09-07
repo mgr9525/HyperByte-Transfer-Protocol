@@ -37,6 +37,9 @@ func (c *Response) Code() int32 {
 func (c *Response) HeadBytes() []byte {
 	return c.heads
 }
+func (c *Response) BodyLen() uint32 {
+	return c.bdln
+}
 func (c *Response) BodyBytes(ctxs ...context.Context) []byte {
 	c.bdok.Lock()
 	defer c.bdok.Unlock()

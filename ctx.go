@@ -65,6 +65,9 @@ func (c *Context) Args() url.Values {
 func (c *Context) HeadBytes() []byte {
 	return c.hds
 }
+func (c *Context) BodyLen() uint32 {
+	return c.bdln
+}
 func (c *Context) BodyBytes(ctxs ...context.Context) []byte {
 	c.bdok.Lock()
 	defer c.bdok.Unlock()

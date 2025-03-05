@@ -82,7 +82,7 @@ func (c *Request) Command(cmd string) *Request {
 	c.cmd = cmd
 	return c
 }
-func (c *Request) GetCommand(cmd string) string {
+func (c *Request) GetCommand() string {
 	return c.cmd
 }
 func (c *Request) Args(args url.Values) *Request {
@@ -143,7 +143,7 @@ func (c *Request) send(bds []byte, hds ...interface{}) error {
 		args = c.args.Encode()
 	}
 	info := &msgInfo{
-		Version: 2,
+		Version: 1,
 		Control: c.control,
 		LenCmd:  uint16(len(c.cmd)),
 		LenArg:  uint16(len(args)),
